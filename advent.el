@@ -26,7 +26,6 @@
 ;;
 ;; Further ideas:
 ;; TODO: check problem creation and submission.
-;; TODO: minor mode show year/day/*cookie status*
 ;; TODO: template/util should be per-year
 ;; TODO: templates should assume input-test.txt and input.txt
 ;; TODO: easy test suite
@@ -43,19 +42,19 @@
 
 (defcustom advent-dir
   (expand-file-name "~/projects-my/advent-of-code/")
-  "Path to the AoC solutions directory."
+  "Root directory containing Advent of Code solutions."
   :type 'directory
   :group 'advent)
 
 (defcustom advent-file-template
-  (file-name-concat (expand-file-name advent-dir) "template.py")
-  "A template for the first AoC solution source of the day."
+  (file-name-concat advent-dir "template.py")
+  "Template used to create a new AoC day’s solution file."
   :type 'file
   :group 'advent)
 
 (defcustom advent-lib-template
-  (file-name-concat (expand-file-name advent-dir) "util.py")
-  "A template for the util code for the AoC solution of the day."
+  (file-name-concat advent-dir "util.py")
+  "Template for shared AoC utility code."
   :type 'file
   :group 'advent)
 
@@ -65,176 +64,174 @@ It receives (YEAR DAY COOKIE-STATUS)."
   :type 'string
   :group 'advent)
 
-;;;; API
-
 (defvar advent-submit-level-history nil
   "History of level submission.")
 
+;;;; Utilities
+
+(defun advent--day ()
+  "Return current AoC day (America/New_York)."
+  (nth 3 (decode-time (current-time) "America/New_York")))
+
+(defun advent--default-answer ()
+  "Return current region contents as a default answer."
+  (when (use-region-p)
+    (buffer-substring-no-properties (region-beginning) (region-end))))
+
+;;;; Cookie management
+
 (defun advent-login (session)
-  "Login to Advent of Code.
-Argument SESSION - session cookie to use."
-  (interactive "sValue of session cookie from logged in browser: ")
-  (url-cookie-store "session" session "Thu, 25 Dec 2027 20:17:36 -0000" ".adventofcode.com" "/" t)
-  (message "Cookie stored"))
+  "Store SESSION cookie for adventofcode.com."
+  (interactive "sSession cookie (from browser): ")
+  (url-cookie-store "session" session
+                    "Thu, 25 Dec 2027 20:17:36 -0000"
+                    ".adventofcode.com" "/" t)
+  (advent--refresh-mode-lines)
+  (message "AoC session cookie stored."))
+
+(defun advent--cookie-ok-p ()
+  "Return non-nil if an AoC session cookie exists and is not expired."
+  (when-let ((cookies (url-cookie-retrieve ".adventofcode.com" "/" t)))
+    (not (url-cookie-expired-p (car cookies)))))
+
+(defun advent--cookie-status ()
+  "Return a character cookie representing cookie session status."
+  (if (advent--cookie-ok-p) "✓" "✗"))
+
+;;;; Problem and input handling
 
 (defun advent (prefix &optional year day)
-  "Load todays adventofcode.com problem and input.
-Non-nil PREFIX to submit YEAR and DAY manually.  Optional arguments
-YEAR,DAY: Load this year,day instead.  Defaults to today."
+  "Open AoC problem page and input.
+With PREFIX, prompt for YEAR and DAY; otherwise infer from today."
   (interactive "P")
   (if prefix
-      (progn
-        (setq year (read-string "Year: " (format-time-string "%Y")))
-        (setq day (read-number "Day: " (advent--day))))
-    (setq year (or year (format-time-string "%Y")))
-    (setq day (or day (advent--day))))
-  ;; (delete-other-windows)
+      (setq year (read-string "Year: " (format-time-string "%Y"))
+            day  (read-number "Day: " (advent--day)))
+    (setq year (or year (format-time-string "%Y"))
+          day  (or day (advent--day))))
   (eww (format "https://adventofcode.com/%s/day/%d" year day))
   (advent-src year day)
   (advent-input year day)
   (switch-to-buffer "*eww*"))
 
 (defun advent-submit (answer level &optional year day)
-  "Submits ANSWER for LEVEL to todays adventofcode.com problem.
-LEVEL - either 1 or 2.
-YEAR - year to submit (default ot current)
-DAY - day to submit (Defaults to today)."
+  "Submit ANSWER for LEVEL (1 or 2) to adventofcode.com.
+Optional YEAR and DAY default to today."
   (interactive
    (list
-    ;; answer
-    (let ((answer-default (advent--default-answer)))
-      (read-string
-       (cond
-        ((and answer-default (> (length answer-default) 0))
-         (format "Submit (default %s): " answer-default))
-        (t "Submit: "))
-       nil nil answer-default))
-    ;; level
-    (let ((default-level (or (car advent-submit-level-history) "1")))
-      (read-string (format "Level (%s): " default-level)
-                   nil 'advent-submit-level-history default-level))))
+    (let ((default (advent--default-answer)))
+      (read-string (if (and default (not (string-empty-p default)))
+                       (format "Submit (default %s): " default)
+                     "Submit: ")
+                   nil nil default))
+    (let ((default (or (car advent-submit-level-history) "1")))
+      (read-string (format "Level (%s): " default)
+                   nil 'advent-submit-level-history default))))
   (let* ((year (or year (format-time-string "%Y")))
-         (day (or day (advent--day)))
-         (url (format "https://adventofcode.com/%s/day/%d/answer" year day))
+         (day  (or day (advent--day)))
+         (url  (format "https://adventofcode.com/%s/day/%d/answer" year day))
          (url-request-method "POST")
          (url-request-data (format "level=%s&answer=%s" level answer))
-         (url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded"))))
+         (url-request-extra-headers
+          '(("Content-Type" . "application/x-www-form-urlencoded"))))
     (eww-browse-url url)))
 
 (defun advent-src (&optional year day)
-  "Open a file for YEAR, DAY.
-If non-existant, use `advent-file-template' to create one."
+  "Open AoC source file for YEAR and DAY, creating from template if needed."
   (interactive "P")
   (let* ((year (or year (format-time-string "%Y")))
-         (day (format "%d" (or day (advent--day))))
-         (dir (file-name-concat (expand-file-name advent-dir) year day))
+         (day  (number-to-string (or day (advent--day))))
+         (dir  (file-name-concat advent-dir year day))
          (file1 (file-name-concat dir "part1.py"))
          (file2 (file-name-concat dir "part2.py")))
-    (when (and (not (file-exists-p file1))
-               (file-exists-p advent-file-template))
+    (unless (file-exists-p file1)
       (mkdir dir t)
-      (copy-file advent-file-template file1)
-      (copy-file advent-file-template file2)
-      (copy-file advent-lib-template (concat dir "/")))
+      (when (file-exists-p advent-file-template)
+        (copy-file advent-file-template file1)
+        (copy-file advent-file-template file2))
+      (when (file-exists-p advent-lib-template)
+        (copy-file advent-lib-template dir)))
     (find-file file1)))
 
 (defun advent-input (&optional year day)
-  "Load adventofcode.com daily input.txt in other window.
-Optional arguments YEAR/DAY: Load this day/year instead.  Defaults to
-today."
+  "Fetch or open AoC input.txt for YEAR and DAY in another window."
   (interactive "P")
   (let* ((year (or year (format-time-string "%Y")))
-         (day (format "%d" (or day (advent--day))))
-         (url (format "https://adventofcode.com/%s/day/%s/input" year day))
-         (dir (file-name-concat (expand-file-name advent-dir) year day))
+         (day  (number-to-string (or day (advent--day))))
+         (url  (format "https://adventofcode.com/%s/day/%s/input" year day))
+         (dir  (file-name-concat advent-dir year day))
          (file (file-name-concat dir "input.txt")))
-    (if (not (file-exists-p file))
-        (url-retrieve url 'advent--download-callback (list file))
-      (find-file-other-window file))))
+    (if (file-exists-p file)
+        (find-file-other-window file)
+      (url-retrieve url #'advent--download-callback (list file)))))
 
 (defun advent--download-callback (status file)
-  "Save the results retrieved to a specified FILE.
-STATUS - request status."
+  "Save downloaded input to FILE.  STATUS is the request result."
   (if (plist-get status :error)
-      (message "Failed to download todays advent %s" (plist-get status :error))
+      (message "Failed to download input: %S" (plist-get status :error))
     (mkdir (file-name-directory file) t)
     (goto-char (point-min))
-    (re-search-forward "\r?\n\r?\n")
-    (write-region (point) (point-max) file)
+    (when (re-search-forward "\r?\n\r?\n" nil t)
+      (write-region (point) (point-max) file))
     (find-file-other-window file)))
 
-(defun advent--day ()
-  "Return current day as a number based on the correct time zone."
-  (elt (decode-time (current-time) "America/New_York") 3))
-
-(defun advent--default-answer ()
-  "Use current region as a default answer."
-  (and transient-mark-mode mark-active
-       (/= (point) (mark))
-       (buffer-substring-no-properties (point) (mark))))
-
-;;;; advent-mode
+;;;; Mode-line helpers
 
 (defun advent--in-aoc-project-p (&optional dir)
-  "Check if DIR is in the AoC solution rectory."
-  (let ((dir (expand-file-name (or dir default-directory))))
-    (file-in-directory-p dir (expand-file-name advent-dir))))
+  "Return non-nil if DIR (default `default-directory') is under `advent-dir'."
+  (file-in-directory-p (expand-file-name (or dir default-directory))
+                       (expand-file-name advent-dir)))
 
 (defun advent--infer-from-path (dir)
-  "Return (YEAR DAY) if DIR ends in .../YYYY/DD/."
-  (let* ((dir (file-name-as-directory (expand-file-name dir)))
-         ;; Match /YYYY/DD/ anywhere in the path
-         (re (concat "/\\(20[0-9][0-9]\\)/\\([0-9][0-9]?\\)/")))
-    (when (string-match re dir)
+  "Return (YEAR DAY) list if DIR path ends with /YYYY/DD/."
+  (let ((re "/\\(20[0-9][0-9]\\)/\\([0-9][0-9]?\\)/"))
+    (when (string-match re (file-name-as-directory (expand-file-name dir)))
       (list (match-string 1 dir)
             (number-to-string (string-to-number (match-string 2 dir)))))))
 
 (defun advent--infer-context ()
-  "Return (YEAR DAY) based on path or today's date."
-  (or (advent--infer-from-path (or (and buffer-file-name
-                                       (file-name-directory buffer-file-name))
-                                  default-directory))
+  "Infer (YEAR DAY) from current path or default to today's date."
+  (or (advent--infer-from-path
+       (or (and buffer-file-name (file-name-directory buffer-file-name))
+           default-directory))
       (list (format-time-string "%Y")
             (number-to-string (advent--day)))))
 
-(defun advent--cookie-ok-p ()
-  "Non-nil if AoC session cookie exists and is not expired."
-  (let* ((cookies (url-cookie-retrieve ".adventofcode.com" "/" t)))
-    (and (not (null cookies))
-         (not (url-cookie-expired-p (car cookies))))))
-
-(defun advent--cookie-status ()
-  "Return symbol representing AoC session cookie status."
-  (if (advent--cookie-ok-p) "✓" "✗"))
+(defun advent--refresh-mode-lines ()
+  "Force a mode-line refresh in all buffers where `advent-mode' is enabled."
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (bound-and-true-p advent-mode)
+        (force-mode-line-update t)))))
 
 (defun advent--mode-line ()
-  "AoC mode line string."
-  (let* ((ctx (advent--infer-context))
-         (year (car ctx))
-         (day (cadr ctx))
-         (cookie (advent--cookie-status)))
+  "Return formatted AoC mode line indicator."
+  (pcase-let* ((`(,year ,day) (advent--infer-context))
+               (cookie (advent--cookie-status)))
     (format advent-mode-line-format year day cookie)))
+
+;;;; Minor modes
 
 ;;;###autoload
 (define-minor-mode advent-mode
-  "Show AoC year/day and cookie status in the mode line."
-  :init-value nil
+  "Display AoC year/day and cookie status in the mode line."
   :lighter nil
   (if advent-mode
       (unless (assq 'advent-mode minor-mode-alist)
-        (push '(advent-mode (:eval (advent--mode-line))) minor-mode-alist))
+        (push '(advent-mode (:eval (advent--mode-line)))
+              minor-mode-alist))
     (setq minor-mode-alist
-          (delq (assq 'advent-mode minor-mode-alist) minor-mode-alist)))
+          (assq-delete-all 'advent-mode minor-mode-alist)))
   (force-mode-line-update))
 
 (defun advent--maybe-enable ()
-  "Enable AoC mode when a solutions directory is detected."
-  (when (advent--in-aoc-project-p default-directory)
+  "Enable `advent-mode' in AoC project directories."
+  (when (advent--in-aoc-project-p)
     (advent-mode 1)))
 
 ;;;###autoload
 (define-minor-mode global-advent-mode
-  "Enable `advent-mode' automatically in AoC projects."
+  "Automatically enable `advent-mode' in Advent of Code projects."
   :global t
   (if global-advent-mode
       (progn
