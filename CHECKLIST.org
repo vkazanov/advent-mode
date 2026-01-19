@@ -1,0 +1,24 @@
+A list of things to manually check when testing the project:
+
+1. Mode-line
+   1. No project
+   2. Project root
+   3. Project, year dir
+   4. Project, year/day dir
+   5. Cookie set / unset
+   6. Open buffer in one window
+      1. set the cookie elsewhere
+2. New day
+   1. Cookie set / not set
+   2. No dir
+   3. Dir already there
+      1. No input there
+      2. Input already there
+3. Browse URL
+   1. No dir
+   2. Invalid year/day
+   3. Valid year/day
+4. Submit
+   1. Cookie set / unset
+   2. Dir, no dir
+   3. region, no region

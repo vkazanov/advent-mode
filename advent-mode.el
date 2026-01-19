@@ -91,7 +91,7 @@ Absolute paths are copied as-is, relative paths are resolved from
 ;;;; Helper functions.
 
 (defun advent--aoc-now ()
-  "Return (YEAR DAY) in the America/New_York timezone."
+  "Return (YEAR DAY) in the AoC timezone (America/New_York)."
   (pcase-let ((`(,_ ,_ ,_ ,day ,_ ,year ,_ ,_ ,_)
                (decode-time (current-time) "America/New_York")))
     (list year day)))
@@ -169,7 +169,7 @@ PATH is expected to be relative to `advent-root-dir'."
 
 ;;;###autoload
 (defun advent-login (session)
-  "Store AoC SESSION cookie."
+  "Login to AoC by providing the SESSION cookie."
   (interactive "sSession cookie (from browser): ")
   (url-cookie-store "session" session
                     "Fri, 25 Dec 2031 00:00:00 GMT"
@@ -180,13 +180,17 @@ PATH is expected to be relative to `advent-root-dir'."
 ;;;; IO helpers
 
 (defun advent--ensure-dir (dir)
-  "Create a DIR if it doesn't exist."
-  (unless (file-directory-p dir) (mkdir dir t)))
+  "Create a DIR if it doesn't exist.
+Return t if dir existed, nil otherwise."
+  (if (not (file-directory-p dir))
+      (progn (mkdir dir t)
+             (message "Created %s" dir)
+             nil) t))
 
 (defun advent--write-url-to-file (url file)
   "Synchronously GET URL and write body to FILE.
 Return FILE or signal error."
-  (let ((buf (url-retrieve-synchronously url t t 30)))
+  (let ((buf (url-retrieve-synchronously url)))
     (unless buf (error "Failed to retrieve %s" url))
     (unwind-protect
         (with-current-buffer buf
@@ -217,27 +221,33 @@ Returns response body as string."
 ;;;; Commands
 
 ;;;###autoload
-(defun advent-open-problem (&optional year day)
+(defun advent-open-problem-page (&optional year day)
   "Open the AoC problem page for YEAR and DAY in EWW.
 If not provided, infer from context or use AoC today."
-  (interactive)
-  (pcase-let* ((`(,Y ,D) (list (or year (car (advent--context-year-day)))
-                               (or day  (cadr (advent--context-year-day))))))
-    (eww-browse-url (advent--problem-url Y D))))
+  (interactive nil advent-mode)
+  (let* ((ctx (advent--context-year-day))
+         (year (or year (car ctx)))
+         (day (or day (cadr ctx))))
+    (unless (and year day)
+      (user-error "Problem not detected"))
+    (eww-browse-url (advent--problem-url year day))))
 
 ;;;###autoload
-(defun advent-get-input (&optional year day)
+(defun advent-open-input (&optional year day)
   "Fetch (if needed) and open the input for YEAR and DAY."
-  (interactive)
-  (pcase-let* ((`(,Y ,D) (list (or year (car (advent--context-year-day)))
-                               (or day  (cadr (advent--context-year-day)))))
-               (dst (advent--input-path Y D)))
-    (when (not (advent--cookie-ok-p))
-      (when (y-or-n-p "AoC session cookie missing.  Set it now? ")
-        (call-interactively #'advent-login)))
+  (interactive nil advent-mode)
+  (let* ((ctx (advent--context-year-day))
+         (year (or year (car ctx)))
+         (day (or day (cadr ctx)))
+         (dst (advent--input-path year day)))
+    (unless (advent--cookie-ok-p)
+      (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
+          (call-interactively #'advent-login)
+        (user-error "No AoC session cookie set; run M-x advent-login")))
     (if (file-exists-p dst)
         (find-file-other-window dst)
-      (advent--write-url-to-file (advent--input-url Y D) dst)
+      (advent--write-url-to-file (advent--input-url year day) dst)
+      (message "%s saved." dst)
       (find-file-other-window dst))))
 
 ;;;###autoload
@@ -246,49 +256,54 @@ If not provided, infer from context or use AoC today."
 Return server response."
   (interactive
    (let* ((def (advent--default-answer))
-          (ans (read-string (format "Answer%s: " (if def (format " (default %s)" def) "")) nil nil def))
-          (lvl (read-string (format "Level (default %s): " (or (car advent-submit-level-history) "1"))
-                            nil 'advent-submit-level-history (or (car advent-submit-level-history) "1"))))
-     (list ans lvl nil nil)))
-  (pcase-let* ((`(,Y ,D) (list (or year (car (advent--context-year-day)))
-                               (or day  (cadr (advent--context-year-day))))))
-    (unless (advent--cookie-ok-p)
-      (user-error "No AoC session cookie set; run M-x advent-login"))
-    (let* ((resp (advent--http-post (advent--answer-url Y D)
-                                    (format "level=%s&answer=%s"
-                                            (url-hexify-string (format "%s" level))
-                                            (url-hexify-string (format "%s" answer))))))
-      (with-current-buffer (get-buffer-create "*AoC Submit*")
-        (erase-buffer)
-        (insert resp)
-        (goto-char (point-min))
-        (display-buffer (current-buffer)))
-      (message "Submitted answer for %d day %d (level %s)" Y D level)
-      resp)))
+          (ans (read-string "Answer: " nil nil def))
+          (lvl (read-string "Level: " nil 'advent-submit-level-history "1")))
+     (list ans lvl nil nil))
+   advent-mode)
+  (unless (advent--cookie-ok-p)
+    (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
+        (call-interactively #'advent-login)
+      (user-error "No AoC session cookie set; run M-x advent-login")))
+  (let* ((ctx (advent--context-year-day))
+         (year (or year (car ctx)))
+         (day (or day (cadr ctx)))
+         (resp (advent--http-post (advent--answer-url year day)
+                                  (format "level=%s&answer=%s"
+                                          (url-hexify-string (format "%s" level))
+                                          (url-hexify-string (format "%s" answer))))))
+    (with-current-buffer (get-buffer-create "*AoC Submit*")
+      (erase-buffer)
+      (insert resp)
+      (goto-char (point-min))
+      (display-buffer (current-buffer)))
+    (message "Submitted answer for %d day %d (level %s)" year day level)
+    resp))
 
 ;;;###autoload
-(defun advent-new-day (year day)
-  "Create YEAR/DAY directory and optionally open problem and input."
+(defun advent-open-day (year day)
+  "Open YEAR/DAY problem directory.
+Create the directory if it doesn't exist.  Suggest opening the problem
+page and retrieving the input."
   (interactive
-   (pcase-let* ((`(,Y0 ,D0) (advent--aoc-now)))
-     (list (read-number (format "Year (%d): " Y0) Y0)
-           (read-number (format "Day (%d): " D0)  D0))))
+   (pcase-let* ((`(,year-now ,day-now) (advent--aoc-now)))
+     (list (read-number "Year: " year-now)
+           (read-number "Day: "  day-now))))
   (unless (advent--cookie-ok-p)
-    (when (y-or-n-p "AoC session cookie missing.  Set it now? ")
-      (call-interactively #'advent-login)))
+      (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
+          (call-interactively #'advent-login)
+        (user-error "No AoC session cookie set; run M-x advent-login")))
   (let* ((dir (advent--problem-dir year day)))
-    (advent--ensure-dir dir)
-    (dolist (f advent-new-files)
-      (let* ((src (if (file-name-absolute-p f) f (expand-file-name f advent-root-dir)))
-             (dst (file-name-concat dir (file-name-nondirectory f))))
-        (when (file-exists-p src)
-          (copy-file src dst t))))
-    (when (y-or-n-p "Open problem in EWW? ")
-      (advent-open-problem year day))
-    (when (y-or-n-p (format "Download %s and open it? " advent-input-file-name))
-      (advent-get-input year day))
+    (unless (advent--ensure-dir dir)
+      (dolist (f advent-new-files)
+        (let* ((src (if (file-name-absolute-p f) f (expand-file-name f advent-root-dir)))
+               (dst (file-name-concat dir (file-name-nondirectory f))))
+          (when (file-exists-p src)
+            (copy-file src dst t)))))
     (dired dir)
-    (message "Created %s" dir)))
+    (when (y-or-n-p "Open problem in EWW? ")
+      (advent-open-problem-page year day))
+    (when (y-or-n-p (format "Download %s and open it? " advent-input-file-name))
+      (advent-open-input year day))))
 
 ;;;; Mode line and modes
 
@@ -316,12 +331,16 @@ Return server response."
 
 (defun advent--maybe-enable ()
   "Enable `advent-mode' in AoC directories."
+  (unless advent-root-dir
+    (user-error "advent-root-dir variable is not set"))
   (when (advent--in-project-p) (advent-mode 1)))
 
 ;;;###autoload
 (define-minor-mode global-advent-mode
-  "Enable `advent-mode' automatically under `advent-root-dir'."
+  "Enable `advent-mode' automatically in `advent-root-dir'."
   :global t
+  (unless advent-root-dir
+    (user-error "advent-root-dir variable is not set"))
   (if global-advent-mode
       (progn
         (add-hook 'find-file-hook #'advent--maybe-enable)
