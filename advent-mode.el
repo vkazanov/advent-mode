@@ -144,7 +144,7 @@ PATH is expected to be relative to `advent-root-dir'."
           (string-to-number (match-string 2 path)))))
 
 (defun advent--context-year-day ()
-  "Infer (YEAR DAY) from current buffer path or default to AoC now."
+  "Infer (YEAR DAY) from current buffer path."
   (and (file-in-directory-p default-directory (expand-file-name advent-root-dir))
        (advent--infer-year-day-from-path
         (file-relative-name default-directory advent-root-dir))))
@@ -159,6 +159,14 @@ PATH is expected to be relative to `advent-root-dir'."
    (t (string-trim (thing-at-point 'line t)))))
 
 ;;;; Cookie management
+
+(defun advent--ensure-cookie-or-error ()
+  "Check if cookie is set.
+Suggest setting the cookie, error otherwise."
+  (unless (advent--cookie-ok-p)
+      (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
+          (call-interactively #'advent-login)
+        (user-error "No AoC session cookie set; run M-x advent-login"))))
 
 (defun advent--cookie-ok-p ()
   "Return non-nil if an AoC session cookie exists and is not expired."
@@ -240,6 +248,7 @@ If not provided, infer from context or use AoC today."
          (day (or day (cadr ctx))))
     (unless (and year day)
       (user-error "Problem not detected"))
+    (advent--ensure-cookie-or-error)
     (eww-browse-url (advent--problem-url year day))))
 
 ;;;###autoload
@@ -250,10 +259,9 @@ If not provided, infer from context or use AoC today."
          (year (or year (car ctx)))
          (day (or day (cadr ctx)))
          (dst (advent--input-path year day)))
-    (unless (advent--cookie-ok-p)
-      (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
-          (call-interactively #'advent-login)
-        (user-error "No AoC session cookie set; run M-x advent-login")))
+    (unless (and year day)
+      (user-error "Problem not detected"))
+    (advent--ensure-cookie-or-error)
     (if (file-exists-p dst)
         (find-file-other-window dst)
       (advent--write-url-to-file (advent--input-url year day) dst)
@@ -270,24 +278,23 @@ Return server response."
           (lvl (completing-read "Level: " '("1" "2") nil t nil 'advent-submit-level-history "1")))
      (list ans lvl nil nil))
    advent-mode)
-  (unless (advent--cookie-ok-p)
-    (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
-        (call-interactively #'advent-login)
-      (user-error "No AoC session cookie set; run M-x advent-login")))
+  (advent--ensure-cookie-or-error)
   (let* ((ctx (advent--context-year-day))
          (year (or year (car ctx)))
-         (day (or day (cadr ctx)))
-         (resp (advent--http-post (advent--answer-url year day)
-                                  (format "level=%s&answer=%s"
-                                          (url-hexify-string (format "%s" level))
-                                          (url-hexify-string (format "%s" answer))))))
-    (with-current-buffer (get-buffer-create "*AoC Submit*")
-      (erase-buffer)
-      (insert resp)
-      (goto-char (point-min))
-      (display-buffer (current-buffer)))
-    (message "Submitted answer for %d day %d (level %s)" year day level)
-    resp))
+         (day (or day (cadr ctx))))
+    (unless (and year day)
+      (user-error "Problem not detected"))
+    (let ((resp (advent--http-post (advent--answer-url year day)
+                                   (format "level=%s&answer=%s"
+                                           (url-hexify-string (format "%s" level))
+                                           (url-hexify-string (format "%s" answer))))))
+      (with-current-buffer (get-buffer-create "*AoC Submit*")
+        (erase-buffer)
+        (insert resp)
+        (goto-char (point-min))
+        (display-buffer (current-buffer)))
+      (message "Submitted answer for %d day %d (level %s)" year day level)
+      resp)))
 
 ;;;###autoload
 (defun advent-open-day (year day)
@@ -337,7 +344,7 @@ page and retrieving the input."
 ;;;###autoload
 (define-minor-mode advent-mode
   "Show AoC year/day and cookie status in the mode line."
-  :lighter '(:eval (advent--mode-line))
+  :lighter (:eval (advent--mode-line))
   (force-mode-line-update))
 
 (defun advent--maybe-enable ()
@@ -352,13 +359,13 @@ page and retrieving the input."
         (advent-mode 0)))
 
 (defun advent--enable-all ()
-  "Disable `advent-mode' in all AoC buffers."
+  "Enable `advent-mode' in all AoC buffers."
   (dolist (b (buffer-list))
     (with-current-buffer b
       (advent--maybe-enable))))
 
 (defun advent--disable-all ()
-  "Enable `advent-mode' in all AoC buffers."
+  "Disable `advent-mode' in all AoC buffers."
   (dolist (b (buffer-list))
     (with-current-buffer b
       (advent--maybe-disable))))
