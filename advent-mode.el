@@ -1,10 +1,14 @@
-;;; advent-mode.el --- Advent of Code helpers -*- lexical-binding: t; -*-
+;;; advent-mode.el --- Advent of Code helper minor mode -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2015-2021 Keegan Carruthers-Smith
-;; 2026  Vladimir Kazanov
+;; Copyright (C) 2026  Vladimir Kazanov
 
-;; Author: Vladimir Kazanov <vekazanov@gmail.com>
+;; Author: Vladimir Kazanov
 ;; Keywords: lisp
+;; Maintainer: Vladimir Kazanov
+;; Package-Requires: ((emacs "28.1"))
+;; URL: https://github.com/vkazanov/advent-mode
+;; Version: 0.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -21,8 +25,8 @@
 
 ;;; Commentary:
 
-;; Advent of code helper mode.
-;;
+;; Advent of Code helper minor mode.
+
 ;; Features:
 ;;
 ;; - Global minor mode that autodetects AoC code.
@@ -41,6 +45,7 @@
 (require 'url)
 (require 'url-cookie)
 (require 'eww)
+(require 'pcase)
 
 (defgroup advent nil
   "Advent of Code helpers."
@@ -332,28 +337,47 @@ page and retrieving the input."
 ;;;###autoload
 (define-minor-mode advent-mode
   "Show AoC year/day and cookie status in the mode line."
-  :lighter (:eval (advent--mode-line))
+  :lighter '(:eval (advent--mode-line))
   (force-mode-line-update))
 
 (defun advent--maybe-enable ()
-  "Enable `advent-mode' in AoC directories."
+  "Enable `advent-mode' in the current buffer."
   (unless advent-root-dir
-    (user-error "advent-root-dir variable is not set"))
+    (user-error "Variable advent-root-dir is not set"))
   (when (advent--in-project-p) (advent-mode 1)))
+
+(defun advent--maybe-disable ()
+  "Disable `advent-mode' in the current buffer."
+  (when (bound-and-true-p advent-mode)
+        (advent-mode 0)))
+
+(defun advent--enable-all ()
+  "Disable `advent-mode' in all AoC buffers."
+  (dolist (b (buffer-list))
+    (with-current-buffer b
+      (advent--maybe-enable))))
+
+(defun advent--disable-all ()
+  "Enable `advent-mode' in all AoC buffers."
+  (dolist (b (buffer-list))
+    (with-current-buffer b
+      (advent--maybe-disable))))
 
 ;;;###autoload
 (define-minor-mode global-advent-mode
   "Enable `advent-mode' automatically in `advent-root-dir'."
   :global t
   (unless advent-root-dir
-    (user-error "advent-root-dir variable is not set"))
+    (user-error "Variable advent-root-dir is not set"))
   (if global-advent-mode
       (progn
         (add-hook 'find-file-hook #'advent--maybe-enable)
         (add-hook 'dired-mode-hook #'advent--maybe-enable)
-        (advent--maybe-enable))
+        (advent--enable-all))
     (remove-hook 'find-file-hook #'advent--maybe-enable)
-    (remove-hook 'dired-mode-hook #'advent--maybe-enable)))
+    (remove-hook 'dired-mode-hook #'advent--maybe-enable)
+    (advent--disable-all))
+  (advent--refresh-mode-lines))
 
 (provide 'advent-mode)
 ;;; advent-mode.el ends here
