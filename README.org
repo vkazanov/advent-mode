@@ -1,0 +1,66 @@
+*  Advent Mode for Emacs
+
+A lightweight Emacs minor mode to help manage Advent of Code (AoC) puzzle solutions.
+
+* Overview
+
+- Advent-mode is a global minor mode that shows AoC context (year, day) and cookie status in the mode line.
+
+- It assumes a simple directory layout: =path/to/aoc/year<YYYY>/day<DD>=
+
+- Convenient commands to:
+
+  - Login and manage the AoC session cookie
+
+  - Create a new AoC day (with optional boilerplate files)
+
+  - Open the current problem in a browser-like view using eww
+
+  - Fetch and open the puzzle input
+
+  - Submit an answer to AoC (with cookie management)
+
+* Installation / Configuration
+
+This package requires Emacs 28.1+ to run. I use it on Emacs 30.1 so here's my
+configuration using =package-vc=:
+
+#+begin_src emacs-lisp
+  (use-package advent-mode
+    :vc (:url "https://github.com/vkazanov/advent-mode")
+    ;; REQUIRED: where your AoC solutions live
+    :custom (advent-root-dir "~/projects/aoc")
+    :config
+    ;; Optional
+    (setq advent-input-file-name "input.txt"
+          advent-mode-line-format " AoC[%s/%s %s]"
+          ;; Copy these into each new day directory (absolute or
+          ;; relative to advent-root-dir)
+          advent-new-files nil)
+    ;; Enable the mode-line where necessary
+    (global-advent-mode 1))
+#+end_src
+
+* Quick Start
+
+- Enable =global-advent-mode=, set =advent-root-dir= and then:
+
+  - =M-x advent-login= to store your AoC session cookie when prompted
+
+    - To retrieve the cookie, log into adventofcode.com in your browser, inspect cookies,
+      copy the value of the "session" cookie
+
+  - =M-x advent-open-day= to create/open a specific AoC day (will suggest defaults)
+
+  - =M-x advent-open-problem-page= to view the problem in EWW
+
+  - =M-x advent-open-input= to fetch/open the input for the current day
+
+  - =M-x advent-submit-answer= to submit an answer (prompts for answer and level)
+
+Notes:
+
+- The first time you fetch an input, Advent Mode will download it using your AoC session
+  cookie.
+
+- If the cookie is missing or expired, you'll be prompted to log in.

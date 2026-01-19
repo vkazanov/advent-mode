@@ -175,7 +175,7 @@ PATH is expected to be relative to `advent-root-dir'."
 ;;;###autoload
 (defun advent-login (session)
   "Login to AoC by providing the SESSION cookie."
-  (interactive "sSession cookie (from browser): ")
+  (interactive "sSession cookie: ")
   (url-cookie-store "session" session
                     "Fri, 25 Dec 2031 00:00:00 GMT"
                     ".adventofcode.com" "/" t)
@@ -262,7 +262,7 @@ Return server response."
   (interactive
    (let* ((def (advent--default-answer))
           (ans (read-string "Answer: " nil nil def))
-          (lvl (read-string "Level: " nil 'advent-submit-level-history "1")))
+          (lvl (completing-read "Level: " '("1" "2") nil t nil 'advent-submit-level-history "1")))
      (list ans lvl nil nil))
    advent-mode)
   (unless (advent--cookie-ok-p)
