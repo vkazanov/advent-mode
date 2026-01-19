@@ -86,14 +86,19 @@ Absolute paths are copied as-is, relative paths are resolved from
   :type 'string
   :group 'advent)
 
+(defcustom advent-timezone "America/New_York"
+  "Timezone used when computing AoC default year/day."
+  :type 'string
+  :group 'advent)
+
 (defvar advent-submit-level-history nil)
 
 ;;;; Helper functions.
 
 (defun advent--aoc-now ()
-  "Return (YEAR DAY) in the AoC timezone (America/New_York)."
+  "Return (YEAR DAY) in the AoC timezone."
   (pcase-let ((`(,_ ,_ ,_ ,day ,_ ,year ,_ ,_ ,_)
-               (decode-time (current-time) "America/New_York")))
+               (decode-time (current-time) advent-timezone)))
     (list year day)))
 
 (defun advent--year-dir (year)
@@ -307,12 +312,17 @@ page and retrieving the input."
 
 ;;;; Mode line and modes
 
+(defun advent--mode-line-string (year day)
+  "Return mode line string for YEAR and DAY using the current cookie status."
+  (format advent-mode-line-format year (format "%02d" day)
+          (advent--cookie-status-string)))
+
 (defun advent--mode-line ()
   "Generate a mode line using current directory."
-  (pcase-let* ((`(,year ,day) (advent--context-year-day)))
-    (format advent-mode-line-format
-            year (format "%02d" day)
-            (advent--cookie-status-string))))
+  (if-let ((ctx (advent--context-year-day)))
+      (let ((year (car ctx))
+            (day (cadr ctx)))
+        (advent--mode-line-string year day))))
 
 (defun advent--in-project-p (&optional dir)
   "Return t if DIR in `advent-root-dir'."
@@ -322,11 +332,7 @@ page and retrieving the input."
 ;;;###autoload
 (define-minor-mode advent-mode
   "Show AoC year/day and cookie status in the mode line."
-  :lighter nil
-  (if advent-mode
-      (unless (assq 'advent-mode minor-mode-alist)
-        (push '(advent-mode (:eval (advent--mode-line))) minor-mode-alist))
-    (setq minor-mode-alist (assq-delete-all 'advent-mode minor-mode-alist)))
+  :lighter (:eval (advent--mode-line))
   (force-mode-line-update))
 
 (defun advent--maybe-enable ()
