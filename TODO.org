@@ -4,9 +4,11 @@
 
 * Document
 
-- [ ] Configuration
+- [ ] Configuration on all versions
 
-- [ ] document the normal flow
+- [ ] document the normal flow with global-advent-mode
+
+- [ ] document the per-directory flow with dir-locals + advent-mode only
 
 - [ ] keymap
 
