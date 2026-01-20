@@ -190,12 +190,13 @@ Signal `user-error' otherwise."
 
 (defun advent--default-answer ()
   "Return default answer from region or thing at point."
-  (cond
-   ((use-region-p)
-    (string-trim (buffer-substring-no-properties (region-beginning) (region-end))))
-   ((thing-at-point 'number t))
-   ((thing-at-point 'symbol t))
-   (t (string-trim (thing-at-point 'line t)))))
+  (string-trim
+   (or (and (use-region-p)
+            (buffer-substring-no-properties (region-beginning) (region-end)))
+       (thing-at-point 'number t)
+       (thing-at-point 'symbol t)
+       (thing-at-point 'line t)
+       "")))
 
 ;;;; Cookie management
 
