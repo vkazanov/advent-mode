@@ -301,11 +301,12 @@ Return server response."
 ;;;###autoload
 (defun advent-open-day (year day)
   "Open YEAR/DAY problem directory.
+Use default year/day as provided by `advent--default-aoc-year-day'.
 Create the directory if it doesn't exist.  Suggest opening the problem
 page and retrieving the input."
   (interactive
-   (pcase-let* ((`(,year-now ,day-now)
-                 (advent--default-aoc-year-day (current-time))))
+   (pcase-let*
+       ((`(,year-now ,day-now) (advent--default-aoc-year-day (current-time))))
      (list (read-number "Year: " year-now)
            (read-number "Day: "  day-now))))
   (advent--ensure-cookie-or-error)
