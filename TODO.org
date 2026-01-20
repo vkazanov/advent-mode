@@ -1,0 +1,35 @@
+* Publicity
+
+- [ ] Melpa
+
+* Document
+
+- [ ] Configuration
+
+- [ ] document the normal flow
+
+- [ ] keymap
+
+* Logic
+
+- [ ] better default date (day 1-25, current dec or prev) for aoc-now
+
+- [ ] cleaner cookie lookup
+
+- [ ] cookie status caching? Might be harder to test
+
+- [ ] http error handling
+
+- [ ] advent--context-year-day robustness checks
+
+* Refactor
+
+- [ ] cleaner core/shell separation
+
+* Testing
+
+- [ ] more unit tests for logic
+
+- [ ] check Emacs 28+ versions
+
+- [ ] release procedure
