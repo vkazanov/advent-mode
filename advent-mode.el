@@ -100,11 +100,16 @@ Absolute paths are copied as-is, relative paths are resolved from
 
 ;;;; Helper functions.
 
-(defun advent--aoc-now ()
-  "Return (YEAR DAY) in the AoC timezone."
-  (pcase-let ((`(,_ ,_ ,_ ,day ,_ ,year ,_ ,_ ,_)
-               (decode-time (current-time) advent-timezone)))
-    (list year day)))
+(defun advent--default-aoc-year-day (time)
+  "Return (YEAR DAY) default AoC puzzle for TIME.
+Use `advent-timezone'.  If TIME is in December (AoC timezone) then use
+that YEAR and DAY=min(day-of-month, 25).  Otherwise use previous YEAR
+and DAY=25."
+  (pcase-let ((`(,_sec ,_min ,_hour ,dom ,mon ,year ,_dow ,_dst ,_tz)
+               (decode-time (or time (current-time)) advent-timezone)))
+    (if (= mon 12)
+        (list year (min dom 25))
+      (list (1- year) 25))))
 
 (defun advent--year-dir (year)
   "YEAR directory name."
@@ -299,7 +304,8 @@ Return server response."
 Create the directory if it doesn't exist.  Suggest opening the problem
 page and retrieving the input."
   (interactive
-   (pcase-let* ((`(,year-now ,day-now) (advent--aoc-now)))
+   (pcase-let* ((`(,year-now ,day-now)
+                 (advent--default-aoc-year-day (current-time))))
      (list (read-number "Year: " year-now)
            (read-number "Day: "  day-now))))
   (advent--ensure-cookie-or-error)

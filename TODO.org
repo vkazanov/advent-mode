@@ -14,7 +14,7 @@
 
 * Logic
 
-- [ ] better default date (day 1-25, current dec or prev) for aoc-now
+- [X] better default date (day 1-25, current dec or prev) for aoc-now
 
 - [ ] cleaner cookie lookup
 
