@@ -46,6 +46,7 @@
 (require 'url-cookie)
 (require 'eww)
 (require 'pcase)
+(require 'seq)
 
 (defgroup advent nil
   "Advent of Code helpers."
@@ -207,9 +208,10 @@ Suggest setting the cookie, error otherwise."
         (user-error "No AoC session cookie set; run M-x advent-login"))))
 
 (defun advent--cookie-ok-p ()
-  "Return non-nil if an AoC session cookie exists and is not expired."
+  "Non-nil if a non-expired AoC `session' cookie exists."
   (when-let* ((cookies (url-cookie-retrieve ".adventofcode.com" "/" t))
-              (c (car cookies)))
+              (c (seq-find (lambda (cc) (string= (url-cookie-name cc) "session"))
+                           cookies)))
     (not (url-cookie-expired-p c))))
 
 (defun advent--cookie-status-string ()

@@ -16,13 +16,13 @@
 
 - [X] better default date (day 1-25, current dec or prev) for aoc-now
 
-- [ ] cleaner cookie lookup
+- [X] cleaner cookie lookup
+
+- [X] advent--context-year-day robustness checks
 
 - [ ] cookie status caching? Might be harder to test
 
 - [ ] http error handling
-
-- [ ] advent--context-year-day robustness checks
 
 * Refactor
 
