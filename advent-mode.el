@@ -149,6 +149,15 @@ PATH is expected to be relative to `advent-root-dir'."
        (advent--infer-year-day-from-path
         (file-relative-name default-directory advent-root-dir))))
 
+(defun advent--ensure-context-or-error (&optional year day)
+  "Return (YEAR DAY) from explicit args or context.
+Signal `user-error' otherwise."
+  (let* ((ctx (advent--context-year-day))
+         (y (or year (car ctx)))
+         (d (or day (cadr ctx))))
+    (unless (and y d) (user-error "Problem not detected"))
+    (list y d)))
+
 (defun advent--default-answer ()
   "Return default answer from region or thing at point."
   (cond
@@ -243,11 +252,7 @@ Returns response body as string."
   "Open the AoC problem page for YEAR and DAY in EWW.
 If not provided, infer from context or use AoC today."
   (interactive nil advent-mode)
-  (let* ((ctx (advent--context-year-day))
-         (year (or year (car ctx)))
-         (day (or day (cadr ctx))))
-    (unless (and year day)
-      (user-error "Problem not detected"))
+  (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
     (eww-browse-url (advent--problem-url year day))))
 
@@ -255,18 +260,14 @@ If not provided, infer from context or use AoC today."
 (defun advent-open-input (&optional year day)
   "Fetch (if needed) and open the input for YEAR and DAY."
   (interactive nil advent-mode)
-  (let* ((ctx (advent--context-year-day))
-         (year (or year (car ctx)))
-         (day (or day (cadr ctx)))
-         (dst (advent--input-path year day)))
-    (unless (and year day)
-      (user-error "Problem not detected"))
+  (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
-    (if (file-exists-p dst)
-        (find-file-other-window dst)
-      (advent--write-url-to-file (advent--input-url year day) dst)
-      (message "%s saved." dst)
-      (find-file-other-window dst))))
+    (let ((dst (advent--input-path year day)))
+      (if (file-exists-p dst)
+          (find-file-other-window dst)
+        (advent--write-url-to-file (advent--input-url year day) dst)
+        (message "%s saved." dst)
+        (find-file-other-window dst)))))
 
 ;;;###autoload
 (defun advent-submit-answer (answer level &optional year day)
@@ -278,12 +279,8 @@ Return server response."
           (lvl (completing-read "Level: " '("1" "2") nil t nil 'advent-submit-level-history "1")))
      (list ans lvl nil nil))
    advent-mode)
-  (advent--ensure-cookie-or-error)
-  (let* ((ctx (advent--context-year-day))
-         (year (or year (car ctx)))
-         (day (or day (cadr ctx))))
-    (unless (and year day)
-      (user-error "Problem not detected"))
+  (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
+    (advent--ensure-cookie-or-error)
     (let ((resp (advent--http-post (advent--answer-url year day)
                                    (format "level=%s&answer=%s"
                                            (url-hexify-string (format "%s" level))
@@ -305,10 +302,7 @@ page and retrieving the input."
    (pcase-let* ((`(,year-now ,day-now) (advent--aoc-now)))
      (list (read-number "Year: " year-now)
            (read-number "Day: "  day-now))))
-  (unless (advent--cookie-ok-p)
-      (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
-          (call-interactively #'advent-login)
-        (user-error "No AoC session cookie set; run M-x advent-login")))
+  (advent--ensure-cookie-or-error)
   (let* ((dir (advent--problem-dir year day)))
     (unless (advent--ensure-dir dir)
       (dolist (f advent-new-files)
