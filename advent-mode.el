@@ -141,6 +141,29 @@ and DAY=25."
   "YEAR/DAY answer url."
   (format "https://adventofcode.com/%d/day/%d/answer" year day))
 
+(defun advent--normalize-dir (dir)
+  "Return DIR normalized as a directory."
+  (file-name-as-directory (expand-file-name dir)))
+
+(defun advent--root ()
+  "Return expanded `advent-root-dir' as a directory name, or nil."
+  (when advent-root-dir (advent--normalize-dir advent-root-dir)))
+
+(defun advent--current-buffer-dir ()
+  "Return the path the current buffer file, or `default-directory'."
+  (or
+   ;; prefer buffer file name
+   (and buffer-file-name (file-name-directory buffer-file-name))
+   ;; but a directory would do (like in non-file buffers)
+   default-directory))
+
+(defun advent--relative-dir (dir)
+  "Return normalized DIR path relative to AoC root, or nil."
+  (when-let ((root (advent--root)))
+    (let ((abs (advent--normalize-dir dir)))
+      (when (file-in-directory-p abs root)
+        (file-name-as-directory (file-relative-name abs root))))))
+
 (defun advent--infer-year-day-from-path (path)
   "Infer (YEAR DAY) from PATH.
 PATH is expected to be relative to `advent-root-dir'."
@@ -149,10 +172,10 @@ PATH is expected to be relative to `advent-root-dir'."
           (string-to-number (match-string 2 path)))))
 
 (defun advent--context-year-day ()
-  "Infer (YEAR DAY) from current buffer path."
-  (and (file-in-directory-p default-directory (expand-file-name advent-root-dir))
-       (advent--infer-year-day-from-path
-        (file-relative-name default-directory advent-root-dir))))
+  "Infer (YEAR DAY) from the current buffer location in `advent-root-dir'.
+Return nil if not in the root dir."
+  (when-let ((rel (advent--relative-dir (advent--current-buffer-dir))))
+    (advent--infer-year-day-from-path rel)))
 
 (defun advent--ensure-context-or-error (&optional year day)
   "Return (YEAR DAY) from explicit args or context.
@@ -337,11 +360,6 @@ page and retrieving the input."
             (day (cadr ctx)))
         (advent--mode-line-string year day))))
 
-(defun advent--in-project-p (&optional dir)
-  "Return t if DIR in `advent-root-dir'."
-  (file-in-directory-p (expand-file-name (or dir default-directory))
-                       (expand-file-name advent-root-dir)))
-
 (defvar-keymap advent-mode-map
   :doc "Keymap for `advent-mode'."
   "C-c a p" #'advent-open-problem-page
@@ -358,10 +376,9 @@ page and retrieving the input."
 
 (defun advent--maybe-enable ()
   "Enable `advent-mode' in the current buffer if possible."
-  (unless advent-root-dir
-    (warn "Variable advent-root-dir is not set"))
-  (when (and advent-root-dir (advent--in-project-p))
-    (advent-mode 1)))
+  (if (advent--relative-dir (advent--current-buffer-dir))
+      (advent-mode 1)
+    (warn "Variable advent-root-dir is not set")))
 
 (defun advent--maybe-disable ()
   "Disable `advent-mode' in the current buffer."
