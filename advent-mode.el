@@ -350,10 +350,11 @@ page and retrieving the input."
   (force-mode-line-update))
 
 (defun advent--maybe-enable ()
-  "Enable `advent-mode' in the current buffer."
+  "Enable `advent-mode' in the current buffer if possible."
   (unless advent-root-dir
-    (user-error "Variable advent-root-dir is not set"))
-  (when (advent--in-project-p) (advent-mode 1)))
+    (warn "Variable advent-root-dir is not set"))
+  (when (and advent-root-dir (advent--in-project-p))
+    (advent-mode 1)))
 
 (defun advent--maybe-disable ()
   "Disable `advent-mode' in the current buffer."
