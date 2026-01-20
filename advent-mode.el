@@ -121,7 +121,8 @@ and DAY=25."
 
 (defun advent--problem-dir (year day)
   "YEAR/DAY problem directory path."
-  (file-name-concat advent-root-dir (advent--year-dir year)
+  (file-name-concat advent-root-dir
+                    (advent--year-dir year)
                     (advent--day-dir day)))
 
 (defun advent--input-path (year day)
@@ -336,7 +337,7 @@ page and retrieving the input."
   (let* ((dir (advent--problem-dir year day)))
     (unless (advent--ensure-dir dir)
       (dolist (f advent-new-files)
-        (let* ((src (if (file-name-absolute-p f) f (expand-file-name f advent-root-dir)))
+        (let* ((src (if (file-name-absolute-p f) f (expand-file-name f (advent--root))))
                (dst (file-name-concat dir (file-name-nondirectory f))))
           (when (file-exists-p src)
             (copy-file src dst t)))))
