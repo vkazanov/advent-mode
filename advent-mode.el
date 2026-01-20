@@ -208,7 +208,7 @@ Suggest setting the cookie, error otherwise."
 
 (defun advent--ensure-dir (dir)
   "Create a DIR if it doesn't exist.
-Return t if dir existed, nil otherwise."
+Return t if dir existed, nil if DIR had to be created."
   (if (not (file-directory-p dir))
       (progn (mkdir dir t)
              (message "Created %s" dir)
