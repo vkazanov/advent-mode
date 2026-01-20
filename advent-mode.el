@@ -335,9 +335,17 @@ page and retrieving the input."
   (file-in-directory-p (expand-file-name (or dir default-directory))
                        (expand-file-name advent-root-dir)))
 
+(defvar-keymap advent-mode-map
+  :doc "Keymap for `advent-mode'."
+  "C-c a p" #'advent-open-problem-page
+  "C-c a i" #'advent-open-input
+  "C-c a s" #'advent-submit-answer
+  "C-c a d" #'advent-open-day)
+
 ;;;###autoload
 (define-minor-mode advent-mode
   "Show AoC year/day and cookie status in the mode line."
+  :keymap advent-mode-map
   :lighter (:eval (advent--mode-line))
   (force-mode-line-update))
 
