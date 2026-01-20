@@ -382,38 +382,10 @@ page and retrieving the input."
   (when (advent--relative-dir (advent--current-buffer-dir))
       (advent-mode 1)))
 
-(defun advent--maybe-disable ()
-  "Disable `advent-mode' in the current buffer."
-  (when (bound-and-true-p advent-mode)
-        (advent-mode 0)))
-
-(defun advent--enable-all ()
-  "Enable `advent-mode' in all AoC buffers."
-  (dolist (b (buffer-list))
-    (with-current-buffer b
-      (advent--maybe-enable))))
-
-(defun advent--disable-all ()
-  "Disable `advent-mode' in all AoC buffers."
-  (dolist (b (buffer-list))
-    (with-current-buffer b
-      (advent--maybe-disable))))
-
 ;;;###autoload
-(define-minor-mode global-advent-mode
-  "Enable `advent-mode' automatically in `advent-root-dir'."
-  :global t
-  (unless advent-root-dir
-    (user-error "Variable advent-root-dir is not set"))
-  (if global-advent-mode
-      (progn
-        (add-hook 'find-file-hook #'advent--maybe-enable)
-        (add-hook 'dired-mode-hook #'advent--maybe-enable)
-        (advent--enable-all))
-    (remove-hook 'find-file-hook #'advent--maybe-enable)
-    (remove-hook 'dired-mode-hook #'advent--maybe-enable)
-    (advent--disable-all))
-  (advent--refresh-mode-lines))
+(define-globalized-minor-mode global-advent-mode
+  advent-mode advent--maybe-enable
+  :group 'advent)
 
 (provide 'advent-mode)
 ;;; advent-mode.el ends here
