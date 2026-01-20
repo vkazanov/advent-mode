@@ -282,7 +282,7 @@ Returns response body as string."
 (defun advent-open-problem-page (&optional year day)
   "Open the AoC problem page for YEAR and DAY in EWW.
 If not provided, infer from context or use AoC today."
-  (interactive nil advent-mode)
+  (interactive)
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
     (eww-browse-url (advent--problem-url year day))))
@@ -290,7 +290,7 @@ If not provided, infer from context or use AoC today."
 ;;;###autoload
 (defun advent-open-input (&optional year day)
   "Fetch (if needed) and open the input for YEAR and DAY."
-  (interactive nil advent-mode)
+  (interactive)
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
     (let ((dst (advent--input-path year day)))
@@ -308,8 +308,7 @@ Return server response."
    (let* ((def (advent--default-answer))
           (ans (read-string "Answer: " nil nil def))
           (lvl (completing-read "Level: " '("1" "2") nil t nil 'advent-submit-level-history "1")))
-     (list ans lvl nil nil))
-   advent-mode)
+     (list ans lvl nil nil)))
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
     (let ((resp (advent--http-post (advent--answer-url year day)
