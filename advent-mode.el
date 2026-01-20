@@ -377,9 +377,8 @@ page and retrieving the input."
 
 (defun advent--maybe-enable ()
   "Enable `advent-mode' in the current buffer if possible."
-  (if (advent--relative-dir (advent--current-buffer-dir))
-      (advent-mode 1)
-    (warn "Variable advent-root-dir is not set")))
+  (when (advent--relative-dir (advent--current-buffer-dir))
+      (advent-mode 1)))
 
 (defun advent--maybe-disable ()
   "Disable `advent-mode' in the current buffer."
