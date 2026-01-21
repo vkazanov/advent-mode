@@ -112,19 +112,11 @@ and DAY=25."
         (list year (min dom 25))
       (list (1- year) 25))))
 
-(defun advent--year-dir (year)
-  "YEAR directory name."
-  (format advent-year-dir-format year))
-
-(defun advent--day-dir (day)
-  "DAY directory name."
-  (format advent-day-dir-format day))
-
 (defun advent--problem-dir (year day)
   "YEAR/DAY problem directory path."
   (file-name-concat advent-root-dir
-                    (advent--year-dir year)
-                    (advent--day-dir day)))
+                    (format advent-year-dir-format year)
+                    (format advent-day-dir-format day)))
 
 (defun advent--input-path (year day)
   "YEAR/DAY input file path."
@@ -152,7 +144,7 @@ and DAY=25."
   (when advent-root-dir (advent--normalize-dir advent-root-dir)))
 
 (defun advent--current-buffer-dir ()
-  "Return the path the current buffer file, or `default-directory'."
+  "Return the path of the current buffer file, or `default-directory'."
   (or
    ;; prefer buffer file name
    (and buffer-file-name (file-name-directory buffer-file-name))
@@ -205,9 +197,9 @@ Signal `user-error' otherwise."
   "Check if cookie is set.
 Suggest setting the cookie, error otherwise."
   (unless (advent--cookie-ok-p)
-      (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
-          (call-interactively #'advent-login)
-        (user-error "No AoC session cookie set; run M-x advent-login"))))
+    (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
+        (call-interactively #'advent-login)
+      (user-error "No AoC session cookie set; run M-x advent-login"))))
 
 (defun advent--cookie-ok-p ()
   "Non-nil if a non-expired AoC `session' cookie exists."
@@ -352,17 +344,16 @@ page and retrieving the input."
 
 ;;;; Mode line and modes
 
-(defun advent--mode-line-string (year day)
-  "Return mode line string for YEAR and DAY using the current cookie status."
-  (format advent-mode-line-format year (format "%02d" day)
-          (advent--cookie-status-string)))
-
-(defun advent--mode-line ()
-  "Generate a mode line using current directory."
-  (if-let ((ctx (advent--context-year-day)))
-      (let ((year (car ctx))
-            (day (cadr ctx)))
-        (advent--mode-line-string year day))))
+(defun advent--mode-line (&optional year day)
+  "Generate a mode line using current directory using CTX.
+CTX is a (YEAR DAY) pair either inferred or submitted."
+  (let* ((ctx (advent--context-year-day))
+         (year (or year (car ctx)))
+         (day (or day (cadr ctx))))
+    (format advent-mode-line-format
+            year
+            (format "%02d" day)
+            (advent--cookie-status-string))))
 
 (defvar-keymap advent-mode-map
   :doc "Keymap for `advent-mode'."
