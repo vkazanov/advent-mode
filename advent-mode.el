@@ -281,7 +281,8 @@ REQUIRE-NONEMPTY - when t, error out if the body is empty."
 METHOD is \"GET\"/\"POST\"; DATA is urlencoded string for POST.
 REQUIRE-NONEMPTY - when t, error out if the body is empty."
   (let* ((url-request-method (or method "GET"))
-         (url-request-extra-headers (when data '(("Content-Type" . "application/x-www-form-urlencoded"))))
+         (url-request-extra-headers
+          (when data '(("Content-Type" . "application/x-www-form-urlencoded"))))
          (url-request-data data)
          ;; Do not use the INHIBIT-COOKIE param in the call below!
          (buf (url-retrieve-synchronously url t nil 30)))

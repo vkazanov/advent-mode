@@ -20,9 +20,12 @@
 
 - [X] advent--context-year-day robustness checks
 
-- [ ] cookie status caching? Might be harder to test
+- [X] http error handling
 
-- [ ] http error handling
+- [ ] a funny reply to a submission whenever a puzzle was alread solved. Should I handle
+  this as well?
+
+- [ ] cookie status caching? Might be harder to test
 
 - [ ] customizable session cookie source: read-passwd or read-from-auth-source
 
@@ -38,7 +41,7 @@
 
   - [X] open-day
 
-  - [ ] submit-answer
+  - [X] submit-answer
 
   - [ ] open-input
 
