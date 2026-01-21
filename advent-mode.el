@@ -305,15 +305,24 @@ Return FILE or signal error."
 Returns response body as string."
   (advent--http-request url "POST" data))
 
+(defun advent--prompt-year-day (time)
+  "Prompt for AoC YEAR and DAY.
+Default values come from `advent--default-aoc-year-day' with TIME."
+  (pcase-let ((`(,year ,day) (advent--default-aoc-year-day time)))
+    (list (read-number "Year: " year)
+          (read-number "Day: "  day))))
+
 ;;;; Commands
 
 ;;;###autoload
 (defun advent-open-problem-page (&optional year day)
   "Open the AoC problem page for YEAR and DAY in EWW.
-If not provided, infer from context or use AoC today."
-  (interactive)
+By default, try to infer from context or use AoC today.  Given a prefix
+arg, prompt for a YEAR and DAY."
+  (interactive
+   (if current-prefix-arg (advent--prompt-year-day (current-time))
+     (list nil nil)))
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
-    (advent--ensure-cookie-or-error)
     (eww-browse-url (advent--problem-url year day))))
 
 ;;;###autoload
@@ -358,13 +367,7 @@ Return server response."
 ROOT defaults to `advent-root-dir'.  Use default year/day as provided by
 `advent--default-aoc-year-day'.  Create the directory if it doesn't
 exist.  Suggest opening the problem page and retrieving the input."
-  (interactive
-   (pcase-let*
-       ((`(,year-now ,day-now)
-         (advent--default-aoc-year-day (current-time))))
-     (list (read-number "Year: " year-now)
-           (read-number "Day: "  day-now)
-           nil)))
+  (interactive (advent--prompt-year-day (current-time)))
   (let* ((root (or root (advent--root)
                    (user-error "Variable advent-root-dir is not set")))
          (dir (advent--problem-dir year day root))
