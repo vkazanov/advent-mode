@@ -366,7 +366,7 @@ exist.  Suggest opening the problem page and retrieving the input."
            (read-number "Day: "  day-now)
            nil)))
   (let* ((root (or root (advent--root)
-                   (user-error "advent-root-dir is not set")))
+                   (user-error "Variable advent-root-dir is not set")))
          (dir (advent--problem-dir year day root))
          (created (advent--maybe-create-dir dir)))
     (when (and created
@@ -408,7 +408,7 @@ CTX is a (YEAR DAY) pair either inferred or submitted."
 (defun advent--maybe-enable ()
   "Enable `advent-mode' in the current buffer if possible."
   (when (advent--relative-dir (advent--current-buffer-dir))
-      (advent-mode 1)))
+    (advent-mode 1)))
 
 ;;;###autoload
 (define-globalized-minor-mode global-advent-mode
