@@ -246,7 +246,7 @@ Relative PATHS are resolved relative to ROOT, absolute ones copied as
 is."
   (dolist (f paths)
     (let* ((src (if (file-name-absolute-p f) f (expand-file-name f root)))
-           (dst (file-name-concat target f)))
+           (dst (file-name-concat target (file-name-nondirectory f))))
       (if (file-exists-p src)
           (copy-file src dst t)
         (warn "Template file not found: %s" src)))))
