@@ -172,7 +172,7 @@ Return nil if not in the root dir."
   (when-let ((rel (advent--relative-dir (advent--current-buffer-dir))))
     (advent--infer-year-day-from-path rel)))
 
-(defun advent--ensure-context-or-error (&optional year day)
+(defun advent--ensure-context-or-error (year day)
   "Return (YEAR DAY) from explicit args or context.
 Signal `user-error' otherwise."
   (let* ((ctx (advent--context-year-day))
