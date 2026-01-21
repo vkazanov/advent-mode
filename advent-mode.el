@@ -6,7 +6,7 @@
 ;; Author: Vladimir Kazanov
 ;; Keywords: lisp
 ;; Maintainer: Vladimir Kazanov
-;; Package-Requires: ((emacs "28.1"))
+;; Package-Requires: ((emacs "29.1"))
 ;; URL: https://github.com/vkazanov/advent-mode
 ;; Version: 0.1
 
@@ -191,12 +191,13 @@ Signal `user-error' otherwise."
 (defun advent--default-answer ()
   "Return default answer from region or thing at point."
   (string-trim
-   (or (and (use-region-p)
-            (buffer-substring-no-properties (region-beginning) (region-end)))
-       (thing-at-point 'number t)
-       (thing-at-point 'symbol t)
-       (thing-at-point 'line t)
-       "")))
+   (format "%s"
+           (or (and (use-region-p)
+                    (buffer-substring-no-properties (region-beginning) (region-end)))
+               (thing-at-point 'number t)
+               (thing-at-point 'symbol t)
+               (thing-at-point 'line t)
+               ""))))
 
 ;;;; Cookie management
 

@@ -22,7 +22,7 @@ A lightweight Emacs minor mode to help manage Advent of Code (AoC) puzzle soluti
 
 * Installation / Configuration
 
-This package requires Emacs 28.1+ to run. I use it on Emacs 30.1 so here's my
+This package requires Emacs 29.1+ to run. I use it on Emacs 30.1 so here's my
 configuration using =package-vc=:
 
 #+begin_src emacs-lisp
