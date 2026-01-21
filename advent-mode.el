@@ -112,15 +112,15 @@ and DAY=25."
         (list year (min dom 25))
       (list (1- year) 25))))
 
-(defun advent--problem-dir (year day)
-  "YEAR/DAY problem directory path."
-  (file-name-concat advent-root-dir
+(defun advent--problem-dir (year day root)
+  "YEAR/DAY problem directory path under ROOT."
+  (file-name-concat root
                     (format advent-year-dir-format year)
                     (format advent-day-dir-format day)))
 
-(defun advent--input-path (year day)
-  "YEAR/DAY input file path."
-  (file-name-concat (advent--problem-dir year day)
+(defun advent--input-path (year day root)
+  "YEAR/DAY input file path under ROOT."
+  (file-name-concat (advent--problem-dir year day root)
                     advent-input-file-name))
 
 (defun advent--problem-url (year day)
@@ -231,13 +231,24 @@ Suggest setting the cookie, error otherwise."
 
 ;;;; IO helpers
 
-(defun advent--ensure-dir (dir)
-  "Create a DIR if it doesn't exist.
-Return t if dir existed, nil if DIR had to be created."
-  (if (not (file-directory-p dir))
-      (progn (mkdir dir t)
-             (message "Created %s" dir)
-             nil) t))
+(defun advent--maybe-create-dir (dir)
+  "Create DIR if it doesn't exist.
+Return non-nil if DIR was created."
+  (unless (file-directory-p dir)
+    (mkdir dir t)
+    (message "Created %s" dir)
+    t))
+
+(defun advent--copy-templates (paths target root)
+  "Copy PATHS to TARGET dir.
+Relative PATHS are resolved relative to ROOT, absolute ones copied as
+is."
+  (dolist (f paths)
+    (let* ((src (if (file-name-absolute-p f) f (expand-file-name f root)))
+           (dst (file-name-concat target f)))
+      (if (file-exists-p src)
+          (copy-file src dst t)
+        (warn "Template file not found: %s" src)))))
 
 (defun advent--write-url-to-file (url file)
   "Synchronously GET URL and write body to FILE.
@@ -249,7 +260,7 @@ Return FILE or signal error."
           (goto-char (point-min))
           (unless (re-search-forward "\r?\n\r?\n" nil t)
             (error "Malformed HTTP response"))
-          (advent--ensure-dir (file-name-directory file))
+          (advent--maybe-create-dir (file-name-directory file))
           (write-region (point) (point-max) file nil 'silent)
           file)
       (kill-buffer buf))))
@@ -287,7 +298,7 @@ If not provided, infer from context or use AoC today."
   (interactive)
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
-    (let ((dst (advent--input-path year day)))
+    (let ((dst (advent--input-path year day (advent--root))))
       (if (file-exists-p dst)
           (find-file-other-window dst)
         (advent--write-url-to-file (advent--input-url year day) dst)
@@ -318,28 +329,29 @@ Return server response."
       resp)))
 
 ;;;###autoload
-(defun advent-open-day (year day)
-  "Open YEAR/DAY problem directory.
-Use default year/day as provided by `advent--default-aoc-year-day'.
-Create the directory if it doesn't exist.  Suggest opening the problem
-page and retrieving the input."
+(defun advent-open-day (year day &optional root)
+  "Open YEAR/DAY problem directory under ROOT.
+ROOT defaults to `advent-root-dir'.  Use default year/day as provided by
+`advent--default-aoc-year-day'.  Create the directory if it doesn't
+exist.  Suggest opening the problem page and retrieving the input."
   (interactive
    (pcase-let*
-       ((`(,year-now ,day-now) (advent--default-aoc-year-day (current-time))))
+       ((`(,year-now ,day-now)
+         (advent--default-aoc-year-day (current-time))))
      (list (read-number "Year: " year-now)
-           (read-number "Day: "  day-now))))
-  (advent--ensure-cookie-or-error)
-  (let* ((dir (advent--problem-dir year day)))
-    (unless (advent--ensure-dir dir)
-      (dolist (f advent-new-files)
-        (let* ((src (if (file-name-absolute-p f) f (expand-file-name f (advent--root))))
-               (dst (file-name-concat dir (file-name-nondirectory f))))
-          (when (file-exists-p src)
-            (copy-file src dst t)))))
+           (read-number "Day: "  day-now)
+           nil)))
+  (let* ((root (or root (advent--root)
+                   (user-error "advent-root-dir is not set")))
+         (dir (advent--problem-dir year day root))
+         (created (advent--maybe-create-dir dir)))
+    (when (and created
+               (y-or-n-p "Dir created.  Copy template files into it? "))
+      (advent--copy-templates advent-new-files dir root))
     (dired dir)
-    (when (y-or-n-p "Open problem in EWW? ")
+    (when (y-or-n-p "Open the problem page in EWW? ")
       (advent-open-problem-page year day))
-    (when (y-or-n-p (format "Download %s and open it? " advent-input-file-name))
+    (when (y-or-n-p (format "Download and open the input file? "))
       (advent-open-input year day))))
 
 ;;;; Mode line and modes
