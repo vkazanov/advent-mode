@@ -88,7 +88,7 @@ Absolute paths are copied as-is, relative paths are resolved from
   :type '(repeat file)
   :group 'advent)
 
-(defcustom advent-mode-line-format " AoC[%s/%s %s]"
+(defcustom advent-mode-line-format " AoC[Y%s/D%s %s]"
   "Mode line format.  Receives (YEAR DAY COOKIE-STATUS)."
   :type 'string
   :group 'advent)
@@ -384,14 +384,15 @@ exist.  Suggest opening the problem page and retrieving the input."
 ;;;; Mode line and modes
 
 (defun advent--mode-line (&optional year day)
-  "Generate a mode line using current directory using CTX.
-CTX is a (YEAR DAY) pair either inferred or submitted."
+  "Generate a mode line using using either YEAR/DAY or dir path.
+Relative path used for YEAR/DAY inference works using
+`advent--context-year-day'.  Provide a graceful fallback for the case
+when a problem directory is not found."
   (let* ((ctx (advent--context-year-day))
-         (year (or year (car ctx)))
-         (day (or day (cadr ctx))))
+         (year (or year (car ctx) "xxxx"))
+         (day (or day (cadr ctx) "xx")))
     (format advent-mode-line-format
-            year
-            (format "%02d" day)
+            year day
             (advent--cookie-status-string))))
 
 (defvar-keymap advent-mode-map
