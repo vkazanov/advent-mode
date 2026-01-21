@@ -47,6 +47,7 @@
 (require 'eww)
 (require 'pcase)
 (require 'seq)
+(require 'subr-x)
 
 (defgroup advent nil
   "Advent of Code helpers."
@@ -250,36 +251,58 @@ is."
           (copy-file src dst t)
         (warn "Template file not found: %s" src)))))
 
+(defun advent--http--status ()
+  "Return numeric HTTP status for current buffer, or nil."
+  (or (and (boundp 'url-http-response-status) url-http-response-status)
+      (save-excursion
+        (goto-char (point-min))
+        (when (looking-at "HTTP/[0-9.]+ \\([0-9][0-9][0-9]\\)")
+          (string-to-number (match-string 1))))))
+
+(defun advent--http--body (require-nonempty)
+  "Return response body from current buffer or signal an error.
+REQUIRE-NONEMPTY - when t, error out if the body is empty."
+  (let ((status (advent--http--status)))
+    (unless status
+      (error "Malformed HTTP response (no status)"))
+    (goto-char (point-min))
+    (unless (re-search-forward "\r?\n\r?\n" nil t)
+      (error "Malformed HTTP response (no header/body separator)"))
+    (let* ((body (buffer-substring-no-properties (point) (point-max)))
+           (snippet (string-trim (substring body 0 (min 200 (length body))))))
+      (when (>= status 400)
+        (error "HTTP %d%s" status (if (string-empty-p snippet) "" (format ": %s" snippet))))
+      (when (and require-nonempty (string-empty-p (string-trim body)))
+        (error "Empty HTTP response body"))
+      body)))
+
+(defun advent--http-request (url &optional method data require-nonempty)
+  "Synchronously request URL and return response body as string.
+METHOD is \"GET\"/\"POST\"; DATA is urlencoded string for POST.
+REQUIRE-NONEMPTY - when t, error out if the body is empty."
+  (let* ((url-request-method (or method "GET"))
+         (url-request-extra-headers (when data '(("Content-Type" . "application/x-www-form-urlencoded"))))
+         (url-request-data data)
+         ;; Do not use the INHIBIT-COOKIE param in the call below!
+         (buf (url-retrieve-synchronously url t nil 30)))
+    (unless buf (error "Failed to %s %s" url-request-method url))
+    (unwind-protect
+        (with-current-buffer buf
+          (advent--http--body require-nonempty))
+      (kill-buffer buf))))
+
 (defun advent--write-url-to-file (url file)
   "Synchronously GET URL and write body to FILE.
 Return FILE or signal error."
-  (let ((buf (url-retrieve-synchronously url)))
-    (unless buf (error "Failed to retrieve %s" url))
-    (unwind-protect
-        (with-current-buffer buf
-          (goto-char (point-min))
-          (unless (re-search-forward "\r?\n\r?\n" nil t)
-            (error "Malformed HTTP response"))
-          (advent--maybe-create-dir (file-name-directory file))
-          (write-region (point) (point-max) file nil 'silent)
-          file)
-      (kill-buffer buf))))
+  (let ((body (advent--http-request url "GET" nil t)))
+    (advent--maybe-create-dir (file-name-directory file))
+    (with-temp-file file (insert body))
+    file))
 
 (defun advent--http-post (url data)
   "Synchronously POST DATA (application/x-www-form-urlencoded) to URL.
 Returns response body as string."
-  (let* ((url-request-method "POST")
-         (url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded")))
-         (url-request-data data)
-         (buf (url-retrieve-synchronously url t t 30)))
-    (unless buf (error "Failed to POST to %s" url))
-    (unwind-protect
-        (with-current-buffer buf
-          (goto-char (point-min))
-          (unless (re-search-forward "\r?\n\r?\n" nil t)
-            (error "Malformed HTTP response"))
-          (buffer-substring-no-properties (point) (point-max)))
-      (kill-buffer buf))))
+  (advent--http-request url "POST" data))
 
 ;;;; Commands
 
@@ -311,7 +334,7 @@ If not provided, infer from context or use AoC today."
 Return server response."
   (interactive
    (let* ((def (advent--default-answer))
-          (ans (read-string "Answer: " nil nil def))
+          (ans (read-string "Answer: " def nil))
           (lvl (completing-read "Level: " '("1" "2") nil t nil 'advent-submit-level-history "1")))
      (list ans lvl nil nil)))
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
