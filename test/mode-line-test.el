@@ -9,7 +9,7 @@
              (lambda () "✓")))
     (should (string=
              (advent--mode-line 2024 5)
-             (format advent-mode-line-format 2024 "05" "✓")))))
+             (format advent-mode-line-format "2024" "5" "✓")))))
 
 (ert-deftest mode-line-string-test-fail-cookie ()
   "Test mode-line string when cookie check fails."
@@ -17,5 +17,5 @@
              (lambda () "✗")))
     (should (string=
              (advent--mode-line 2024 5)
-             (format advent-mode-line-format 2024 "05" "✗")))))
+             (format advent-mode-line-format "2024" "5" "✗")))))
 ;;; mode-line-test.el ends here

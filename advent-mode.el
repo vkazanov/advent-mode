@@ -38,6 +38,9 @@
 ;; - Commands to open problem, fetch input, add new day, submit
 ;;   answers.
 ;;
+;; - Retrieve the Advent of Code session cookie either by prompting or
+;;   through auth sources
+;;
 ;; Inspired by https://github.com/keegancsmith/advent/
 
 ;;; Code:
@@ -45,6 +48,7 @@
 (require 'url)
 (require 'url-cookie)
 (require 'eww)
+(require 'auth-source)
 (require 'pcase)
 (require 'seq)
 (require 'subr-x)
@@ -99,6 +103,37 @@ Absolute paths are copied as-is, relative paths are resolved from
   :group 'advent)
 
 (defvar advent-submit-level-history nil)
+
+(defcustom advent-session-provider #'advent-session-from-auth-source
+  "Function used by `advent-login' to obtain the AoC session cookie.
+The function is called with no arguments and should return the session
+cookie string, or nil if unavailable.
+
+See:
+- `advent-session-from-auth-source'
+- `advent-session-prompt'"
+  :type 'function
+  :group 'advent)
+
+;;;; Session providers
+
+(defun advent-session-from-auth-source ()
+  "Return AoC session cookie from auth-source, or nil if not found."
+  (let ((entry (car (auth-source-search
+                     :host "adventofcode.com"
+                     :user "session"
+                     :require '(:secret)
+                     :max 1))))
+    (when entry
+      (let ((secret (plist-get entry :secret)))
+        (cond
+         ((functionp secret) (funcall secret))
+         ((stringp secret) secret)
+         (t nil))))))
+
+(defun advent-session-prompt ()
+  "Prompt the user for an AoC session cookie string."
+  (read-string "Advent of Code session cookie: "))
 
 ;;;; Helper functions.
 
@@ -199,7 +234,7 @@ Signal `user-error' otherwise."
 Suggest setting the cookie, error otherwise."
   (unless (advent--cookie-ok-p)
     (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
-        (call-interactively #'advent-login)
+        (advent-login nil)
       (user-error "No AoC session cookie set; run M-x advent-login"))))
 
 (defun advent--cookie-ok-p ()
@@ -213,22 +248,16 @@ Suggest setting the cookie, error otherwise."
   "Return a string representing cookie status."
   (if (advent--cookie-ok-p) "✓" "✗"))
 
+(defun advent--cookie-get ()
+  "Return AoC session cookie using `advent-session-provider', or nil."
+  (and advent-session-provider (funcall advent-session-provider)))
+
 (defun advent--refresh-mode-lines ()
   "Update mode-lines of `advent-mode' buffers."
   (dolist (b (buffer-list))
     (with-current-buffer b
       (when (bound-and-true-p advent-mode)
         (force-mode-line-update t)))))
-
-;;;###autoload
-(defun advent-login (session)
-  "Login to AoC by providing the SESSION cookie."
-  (interactive "sSession cookie: ")
-  (url-cookie-store "session" session
-                    "Fri, 25 Dec 2031 00:00:00 GMT"
-                    ".adventofcode.com" "/" t)
-  (advent--refresh-mode-lines)
-  (message "AoC session cookie stored."))
 
 ;;;; IO helpers
 
@@ -313,6 +342,26 @@ Default values come from `advent--default-aoc-year-day' with TIME."
           (read-number "Day: "  day))))
 
 ;;;; Commands
+
+;;;###autoload
+(defun advent-login (&optional session)
+  "Login to AoC by storing the session cookie.
+SESSION, when non-nil, is used directly.  When called interactively
+without a prefix arg, SESSION is obtained from
+`advent-session-provider'.  When called interactively with a prefix arg,
+always prompt for SESSION."
+  (interactive
+   (list (when current-prefix-arg
+           (advent-session-prompt))))
+  (let ((session
+         (or session
+             (advent--cookie-get)
+             (user-error "No session cookie available"))))
+    (url-cookie-store "session" session
+                      "Fri, 25 Dec 2031 00:00:00 GMT"
+                      ".adventofcode.com" "/" t))
+  (advent--refresh-mode-lines)
+  (message "AoC session cookie stored."))
 
 ;;;###autoload
 (defun advent-open-problem-page (&optional year day)

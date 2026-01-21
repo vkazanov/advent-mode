@@ -22,12 +22,14 @@
 
 - [X] http error handling
 
+- [X] customizable session cookie source: read-passwd or read-from-auth-source
+
+- [ ] optionally login when entering buffers when context recognized AoC
+
 - [ ] a funny reply to a submission whenever a puzzle was alread solved. Should I handle
   this as well?
 
 - [ ] cookie status caching? Might be harder to test
-
-- [ ] customizable session cookie source: read-passwd or read-from-auth-source
 
 * Refactor
 
@@ -46,8 +48,6 @@
   - [ ] open-input
 
   - [ ] open-problem-page
-
-- [ ] check Emacs 28+ versions
 
 - [ ] release procedure
 
