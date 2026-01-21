@@ -24,14 +24,28 @@
 
 - [ ] http error handling
 
+- [ ] customizable session cookie source: read-passwd or read-from-auth-source
+
 * Refactor
 
 - [ ] cleaner core/shell separation
 
+- [ ] only commands and leaf function should be impure
+
 * Testing
 
-- [ ] more unit tests for logic
+- [-] more unit tests for command
+
+  - [X] open-day
+
+  - [ ] submit-answer
+
+  - [ ] open-input
+
+  - [ ] open-problem-page
 
 - [ ] check Emacs 28+ versions
 
 - [ ] release procedure
+
+- [ ] github CI
