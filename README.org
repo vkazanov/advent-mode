@@ -12,6 +12,8 @@ A lightweight Emacs minor mode to help manage Advent of Code (AoC) puzzle soluti
 
   - Login and manage the AoC session cookie
 
+  - Optionally persist the cookie in =.authinfo=
+
   - Create a new AoC day (with optional boilerplate files)
 
   - Open the current problem in a browser-like view using eww
@@ -49,6 +51,9 @@ configuration using =package-vc=:
 
     - To retrieve the cookie, login into adventofcode.com in your browser, inspect
       cookies, copy the value of the "session" cookie
+
+    - it is possible to use auth source (the =.authinfo= file) to store the cookie, see
+      =advent-session-provider= for comments
 
   - =M-x advent-open-day= to open an existing AoC day directory
 

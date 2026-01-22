@@ -124,17 +124,15 @@ See:
 
 (defun advent-session-from-auth-source ()
   "Return AoC session cookie from auth-source, or nil if not found."
-  (let ((entry (car (auth-source-search
-                     :host "adventofcode.com"
-                     :user "session"
-                     :require '(:secret)
-                     :max 1))))
-    (when entry
-      (let ((secret (plist-get entry :secret)))
-        (cond
-         ((functionp secret) (funcall secret))
-         ((stringp secret) secret)
-         (t nil))))))
+  (when-let*
+      ((entry (car (auth-source-search
+                    :host "adventofcode.com"
+                    :user "session"
+                    :require '(:secret)
+                    :max 1))))
+    (let ((secret (plist-get entry :secret)))
+      (or (and (functionp secret) (funcall secret))
+          (and (stringp secret) secret)))))
 
 (defun advent-session-prompt ()
   "Prompt the user for an AoC session cookie string."
@@ -398,15 +396,18 @@ Default values come from `advent--default-aoc-year-day' with TIME."
 ;;;###autoload
 (defun advent-login (&optional session)
   "Login to AoC by storing the session cookie.
-SESSION, when non-nil, is used directly.  When called interactively
-without a prefix arg, SESSION is obtained from
-`advent-session-provider'.  When called interactively with a prefix arg,
-always prompt for SESSION."
+SESSION, when non-nil, is used directly.
+
+When called interactively without a prefix arg, SESSION is obtained from
+`advent-session-provider'.  If that returns nil, prompt the user.
+
+When called interactively with a prefix arg, always prompt for SESSION."
   (interactive
    (list (when current-prefix-arg
            (advent-session-prompt))))
   (let ((session (or session
                      (advent--cookie-get)
+                     (advent-session-prompt)
                      (user-error "No session cookie available"))))
     (url-cookie-store "session" session
                       "Fri, 25 Dec 2031 00:00:00 GMT"
