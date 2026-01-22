@@ -102,6 +102,11 @@ Absolute paths are copied as-is, relative paths are resolved from
   :type 'string
   :group 'advent)
 
+(defcustom advent-open-day-format "Y%04d/D%02d"
+  "Open day completion format.  Receives (YEAR DAY)."
+  :type 'string
+  :group 'advent)
+
 (defvar advent-submit-level-history nil)
 
 (defcustom advent-session-provider #'advent-session-from-auth-source
@@ -158,6 +163,10 @@ and DAY=25."
   "YEAR/DAY input file path under ROOT."
   (file-name-concat (advent--problem-dir year day root)
                     advent-input-file-name))
+
+(defun advent--format-year-day (year day)
+  "Return display key for YEAR/DAY."
+  (format advent-open-day-format year day))
 
 (defun advent--problem-url (year day)
   "YEAR/DAY problem url."
@@ -226,6 +235,50 @@ Signal `user-error' otherwise."
                (thing-at-point 'symbol t)
                (thing-at-point 'line t)
                ""))))
+
+
+(defun advent--existing-day-entries (root)
+  "Return a list of (YEAR DAY DIR) for AoC days under ROOT.
+DIR is an absolute directory name."
+  (let ((root (advent--normalize-dir root))
+        entries)
+    (dolist (year-dir (directory-files root t directory-files-no-dot-files-regexp))
+      (when (file-directory-p year-dir)
+        (dolist (day-dir (directory-files year-dir t directory-files-no-dot-files-regexp))
+          (when (file-directory-p day-dir)
+            (when-let* ((rel (file-name-as-directory (file-relative-name day-dir root)))
+                        (year-day (advent--infer-year-day-from-path rel)))
+              (push (list (car year-day)
+                          (cadr year-day)
+                          (file-name-as-directory day-dir))
+                    entries))))))
+    entries))
+
+(defun advent--existing-days (root)
+  "Return an alist of existing AoC days under ROOT.
+Each element is (DISPLAY . (YEAR DAY DIR))."
+  (let (out)
+    (dolist (entry (advent--existing-day-entries root))
+      (pcase-let ((`(,year ,day ,_) entry))
+        (push (cons (advent--format-year-day year day) entry) out)))
+    out))
+
+(defun advent--read-existing-year-day (root &optional time)
+  "Prompt for an existing AoC YEAR/DAY under ROOT.
+Default tries `advent--default-aoc-year-day' with TIME."
+  (let* ((choices (advent--existing-days root)))
+    (unless choices
+      (user-error "No AoC day directories found under %s" root))
+    (pcase-let* ((`(,defy ,defd) (advent--default-aoc-year-day time))
+                 (defkey (advent--format-year-day defy defd))
+                 (default (or (assoc defkey choices) (car choices)))
+                 (picked (completing-read
+                          "Open year/day: "
+                          (mapcar #'car choices)
+                          nil t nil nil (car default))))
+      (pcase-let ((`(,y ,d ,dir) (cdr (assoc picked choices))))
+
+        (list y d dir)))))
 
 ;;;; Cookie management
 
@@ -411,24 +464,49 @@ Return server response."
       resp)))
 
 ;;;###autoload
-(defun advent-open-day (year day &optional root)
-  "Open YEAR/DAY problem directory under ROOT.
-ROOT defaults to `advent-root-dir'.  Use default year/day as provided by
-`advent--default-aoc-year-day'.  Create the directory if it doesn't
-exist.  Suggest opening the problem page and retrieving the input."
+(defun advent-open-day (&optional year day root)
+  "Open an existing YEAR/DAY problem directory under ROOT.
+If YEAR/DAY are not provided (typical interactive use), prompt from
+*existing* days under ROOT so this command works from anywhere as long
+as `advent-root-dir' is set."
+  (interactive)
+  (let* ((root (or root (advent--root)
+                   (user-error "Variable advent-root-dir is not set"))))
+    (pcase-let* ((picked (unless (and year day)
+                           (advent--read-existing-year-day root (current-time))))
+                 (year (or year (nth 0 picked)))
+                 (day  (or day  (nth 1 picked)))
+                 (dir  (or (nth 2 picked)
+                           (advent--problem-dir year day root))))
+      (unless (file-directory-p dir)
+        (user-error "Day dir does not exist: %s (use M-x advent-create-day)" dir))
+      (dired dir))))
+
+;;;###autoload
+(defun advent-create-day (year day &optional root)
+  "Create YEAR/DAY problem directory under ROOT and optionally initialize it.
+ROOT defaults to `advent-root-dir'.  Create the directory if missing.
+If it already exists, suggest opening it via `advent-open-day'.
+
+When a new directory is created, optionally copy `advent-new-files' into
+it, then offer to open the problem page and download/open the input
+file."
   (interactive (advent--prompt-year-day (current-time)))
   (let* ((root (or root (advent--root)
                    (user-error "Variable advent-root-dir is not set")))
-         (dir (advent--problem-dir year day root))
-         (created (advent--maybe-create-dir dir)))
-    (when (and created
-               (y-or-n-p "Dir created.  Copy template files into it? "))
-      (advent--copy-templates advent-new-files dir root))
-    (dired dir)
-    (when (y-or-n-p "Open the problem page in EWW? ")
-      (advent-open-problem-page year day))
-    (when (y-or-n-p (format "Download and open the input file? "))
-      (advent-open-input year day))))
+         (dir (advent--problem-dir year day root)))
+    (if (file-directory-p dir)
+        (when (y-or-n-p "Day dir already exists.  Open it? ")
+          (advent-open-day year day root))
+      (advent--maybe-create-dir dir)
+      (when (and advent-new-files
+                 (y-or-n-p "Dir created.  Copy template files into it? "))
+        (advent--copy-templates advent-new-files dir root))
+      (dired dir)
+      (when (y-or-n-p "Open the problem page in EWW? ")
+        (advent-open-problem-page year day))
+      (when (y-or-n-p "Download and open the input file? ")
+        (advent-open-input year day)))))
 
 ;;;; Mode line and modes
 
@@ -449,7 +527,8 @@ when a problem directory is not found."
   "C-c a p" #'advent-open-problem-page
   "C-c a i" #'advent-open-input
   "C-c a s" #'advent-submit-answer
-  "C-c a d" #'advent-open-day)
+  "C-c a d" #'advent-open-day
+  "C-c a c" #'advent-create-day)
 
 ;;;###autoload
 (define-minor-mode advent-mode
