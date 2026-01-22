@@ -26,19 +26,19 @@ This package requires Emacs 29.1+ to run. I use it on Emacs 30.1 so here's my
 configuration using =package-vc=:
 
 #+begin_src emacs-lisp
-  (use-package advent-mode
-    :vc (:url "https://github.com/vkazanov/advent-mode")
-    ;; REQUIRED: where your AoC solutions live
-    :custom (advent-root-dir "~/projects/aoc")
-    :config
-    ;; Optional
-    (setq advent-input-file-name "input.txt"
-          advent-mode-line-format " AoC[%s/%s %s]"
-          ;; Copy these into each new day directory (absolute or
-          ;; relative to advent-root-dir)
-          advent-new-files nil)
-    ;; Enable the mode-line where necessary
-    (global-advent-mode 1))
+(use-package advent-mode
+  :vc (:url "https://github.com/vkazanov/advent-mode")
+  :custom
+  ;; REQUIRED: where your AoC solutions live
+  (advent-root-dir "~/projects/aoc")
+  ;; OPTIONAL: Copy these into each new day directory (absolute or
+  ;; relative to advent-root-dir)
+  (advent-new-files '("solution.py" "aoc.py"))
+  :config
+  ;; Enable advent-mode when possible in files under advent-root-dir.
+  ;; Otherwise, advent-mode can be enabled locally using
+  ;; .dir-locals.el.
+  (global-advent-mode 1))
 #+end_src
 
 * Quick Start
@@ -47,14 +47,16 @@ configuration using =package-vc=:
 
   - =M-x advent-login= to store your AoC session cookie when prompted
 
-    - To retrieve the cookie, log into adventofcode.com in your browser, inspect cookies,
-      copy the value of the "session" cookie
+    - To retrieve the cookie, login into adventofcode.com in your browser, inspect
+      cookies, copy the value of the "session" cookie
 
-  - =M-x advent-open-day= to create/open a specific AoC day (will suggest defaults)
+  - =M-x advent-open-day= to open an existing AoC day directory
 
-  - =M-x advent-open-problem-page= to view the problem in EWW
+  - =M-x advent-create-day= to create a new AoC day directory
 
-  - =M-x advent-open-input= to fetch/open the input for the current day
+  - =M-x advent-browse-problem-page= to view the current problem page in EWW
+
+  - =M-x advent-fetch-input= to fetch/open the input for the current day
 
   - =M-x advent-submit-answer= to submit an answer (prompts for answer and level)
 

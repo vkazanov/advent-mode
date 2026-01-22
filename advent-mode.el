@@ -236,7 +236,6 @@ Signal `user-error' otherwise."
                (thing-at-point 'line t)
                ""))))
 
-
 (defun advent--existing-day-entries (root)
   "Return a list of (YEAR DAY DIR) for AoC days under ROOT.
 DIR is an absolute directory name."
@@ -417,10 +416,10 @@ always prompt for SESSION."
   (message "AoC session cookie stored."))
 
 ;;;###autoload
-(defun advent-open-problem-page (&optional year day)
+(defun advent-browse-problem-page (&optional year day)
   "Open the AoC problem page for YEAR and DAY in EWW.
-By default, try to infer from context or use AoC today.  Given a prefix
-arg, prompt for a YEAR and DAY."
+Try to infer year/day using the current directory or use AoC today.
+Given a prefix arg, prompt for a YEAR and DAY."
   (interactive
    (if current-prefix-arg (advent--prompt-year-day (current-time))
      (list nil nil)))
@@ -428,8 +427,9 @@ arg, prompt for a YEAR and DAY."
     (eww-browse-url (advent--problem-url year day))))
 
 ;;;###autoload
-(defun advent-open-input (&optional year day)
-  "Fetch (if needed) and open the input for YEAR and DAY."
+(defun advent-fetch-input (&optional year day)
+  "Fetch (if needed) and open the input for YEAR and DAY.
+Infer year/day using the current directory."
   (interactive)
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
@@ -443,7 +443,7 @@ arg, prompt for a YEAR and DAY."
 ;;;###autoload
 (defun advent-submit-answer (answer level &optional year day)
   "Submit ANSWER for LEVEL (1 or 2) for YEAR and DAY.
-Return server response."
+Infer year/day using the current directory.  Return server response."
   (interactive
    (let* ((def (advent--default-answer))
           (ans (read-string "Answer: " def nil))
@@ -451,10 +451,11 @@ Return server response."
      (list ans lvl nil nil)))
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
-    (let ((resp (advent--http-post (advent--answer-url year day)
-                                   (format "level=%s&answer=%s"
-                                           (url-hexify-string (format "%s" level))
-                                           (url-hexify-string (format "%s" answer))))))
+    (let ((resp (advent--http-post
+                 (advent--answer-url year day)
+                 (format "level=%s&answer=%s"
+                         (url-hexify-string (format "%s" level))
+                         (url-hexify-string (format "%s" answer))))))
       (with-current-buffer (get-buffer-create "*AoC Submit*")
         (erase-buffer)
         (insert resp)
@@ -504,9 +505,9 @@ file."
         (advent--copy-templates advent-new-files dir root))
       (dired dir)
       (when (y-or-n-p "Open the problem page in EWW? ")
-        (advent-open-problem-page year day))
+        (advent-browse-problem-page year day))
       (when (y-or-n-p "Download and open the input file? ")
-        (advent-open-input year day)))))
+        (advent-fetch-input year day)))))
 
 ;;;; Mode line and modes
 
@@ -524,8 +525,8 @@ when a problem directory is not found."
 
 (defvar-keymap advent-mode-map
   :doc "Keymap for `advent-mode'."
-  "C-c a p" #'advent-open-problem-page
-  "C-c a i" #'advent-open-input
+  "C-c a p" #'advent-browse-problem-page
+  "C-c a i" #'advent-fetch-input
   "C-c a s" #'advent-submit-answer
   "C-c a d" #'advent-open-day
   "C-c a c" #'advent-create-day)
