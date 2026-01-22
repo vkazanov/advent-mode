@@ -52,3 +52,12 @@
 - [ ] release procedure
 
 - [ ] github CI
+
+* Ideas
+
+- [ ] advent-list-days - a table of solutions using tabular
+
+- [ ] advent-open-day - add a way to select a file by, say, providing a list of candidate
+  names to look for
+
+- [ ] input,test runners
