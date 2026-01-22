@@ -405,10 +405,9 @@ always prompt for SESSION."
   (interactive
    (list (when current-prefix-arg
            (advent-session-prompt))))
-  (let ((session
-         (or session
-             (advent--cookie-get)
-             (user-error "No session cookie available"))))
+  (let ((session (or session
+                     (advent--cookie-get)
+                     (user-error "No session cookie available"))))
     (url-cookie-store "session" session
                       "Fri, 25 Dec 2031 00:00:00 GMT"
                       ".adventofcode.com" "/" t))
@@ -423,7 +422,11 @@ Given a prefix arg, prompt for a YEAR and DAY."
   (interactive
    (if current-prefix-arg (advent--prompt-year-day (current-time))
      (list nil nil)))
-  (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
+  (pcase-let ((`(,year ,day)
+               ;; Priority: args -> context -> prompt
+               (or (and (and year day) (list year day))
+                   (advent--context-year-day)
+                   (advent--prompt-year-day (current-time)))))
     (eww-browse-url (advent--problem-url year day))))
 
 ;;;###autoload
@@ -523,13 +526,17 @@ when a problem directory is not found."
             year day
             (advent--cookie-status-string))))
 
+(defvar-keymap advent-command-map
+  :doc "Prefix keymap for Advent of Code commands."
+  "p" #'advent-browse-problem-page
+  "i" #'advent-fetch-input
+  "s" #'advent-submit-answer
+  "d" #'advent-open-day
+  "c" #'advent-create-day)
+
 (defvar-keymap advent-mode-map
   :doc "Keymap for `advent-mode'."
-  "C-c a p" #'advent-browse-problem-page
-  "C-c a i" #'advent-fetch-input
-  "C-c a s" #'advent-submit-answer
-  "C-c a d" #'advent-open-day
-  "C-c a c" #'advent-create-day)
+  "C-c a" advent-command-map)
 
 ;;;###autoload
 (define-minor-mode advent-mode
