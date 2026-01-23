@@ -1,26 +1,33 @@
-*  Advent Mode for Emacs
+*  Advent of Code mode for Emacs
 
 A lightweight Emacs minor mode to help manage Advent of Code (AoC) puzzle solutions.
 
 * Overview
 
-- Advent-mode is a global minor mode that shows AoC context (year, day) and cookie status in the mode line.
+- Advent-mode is a minor mode that shows AoC context (year, day) and cookie status in the
+  mode line.
 
-- It assumes a simple directory layout: =path/to/aoc/year<YYYY>/day<DD>=
+- Directory layout: =path/to/aoc/year<YYYY>/day<DD>=
 
-- Convenient commands to:
+- Features
 
-  - Login and manage the AoC session cookie
+  - Global minor mode autodetecting solution directories
+
+  - Display year/day/cookie in the mode line
+
+  - Manage the AoC session cookie
 
   - Optionally persist the cookie in =.authinfo=
 
-  - Create a new AoC day (with optional boilerplate files)
+  - Create a new AoC day (with boilerplate files)
 
-  - Open the current problem in a browser-like view using eww
+  - Browse existing day solutions
+
+  - Open the current problem using eww
 
   - Fetch and open the puzzle input
 
-  - Submit an answer to AoC (with cookie management)
+  - Submit an answer to AoC
 
 * Installation / Configuration
 

@@ -1,4 +1,4 @@
-;;; advent-mode.el --- Advent of Code helper minor mode -*- lexical-binding: t; -*-
+;;; advent-mode.el --- Advent of Code mode -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2015-2021 Keegan Carruthers-Smith
 ;; Copyright (C) 2026  Vladimir Kazanov
@@ -25,21 +25,25 @@
 
 ;;; Commentary:
 
-;; Advent of Code helper minor mode.
-
-;; Features:
+;; Advent of Code helper mode.
 ;;
-;; - Global minor mode that autodetects AoC code.
+;;  - Global minor mode autodetecting solution directories
 ;;
-;; - Mode-line shows year/day/cookie
+;;  - Display year/day/cookie in the mode line
 ;;
-;; - Assumed directory layout: path/to/aoc/year<YYYY>/day<DD>
+;;  - Manage the AoC session cookie
 ;;
-;; - Commands to open problem, fetch input, add new day, submit
-;;   answers.
+;;  - Optionally persist the cookie in =.authinfo=
 ;;
-;; - Retrieve the Advent of Code session cookie either by prompting or
-;;   through auth sources
+;;  - Create a new AoC day (with boilerplate files)
+;;
+;;  - Browse existing day solutions
+;;
+;;  - Open the current problem using eww
+;;
+;;  - Fetch and open the puzzle input
+;;
+;;  - Submit an answer to AoC
 ;;
 ;; Inspired by https://github.com/keegancsmith/advent/
 
