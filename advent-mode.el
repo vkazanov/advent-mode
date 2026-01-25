@@ -3,9 +3,9 @@
 ;; Copyright (C) 2015-2021 Keegan Carruthers-Smith
 ;; Copyright (C) 2026  Vladimir Kazanov
 
-;; Author: Vladimir Kazanov
+;; Author: Vladimir Kazanov <@vkazanov>
 ;; Keywords: lisp
-;; Maintainer: Vladimir Kazanov
+;; Maintainer: Vladimir Kazanov <@vkazanov>
 ;; Package-Requires: ((emacs "29.1"))
 ;; URL: https://github.com/vkazanov/advent-mode
 ;; Version: 0.1
