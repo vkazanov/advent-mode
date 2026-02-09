@@ -76,14 +76,6 @@
   :type 'string
   :group 'advent)
 
-(defcustom advent-problem-path-re
-  "^\\(?:year\\)?\\([0-9]\\{4\\}\\)/\\(?:day\\)?\\([0-9]\\{1,2\\}\\)/"
-  "Regexp for the full problem dir path.
-Subexpr 1 should be a problem's year.
-Subexpr 2 should be a problem's day"
-  :type 'regexp
-  :group 'advent)
-
 (defcustom advent-input-file-name "input.txt"
   "Name of the input file saved under a day directory."
   :type 'string
@@ -208,9 +200,41 @@ and DAY=25."
 (defun advent--infer-year-day-from-path (path)
   "Infer (YEAR DAY) from PATH.
 PATH is expected to be relative to `advent-root-dir'."
-  (when (string-match advent-problem-path-re path)
-    (list (string-to-number (match-string 1 path))
-          (string-to-number (match-string 2 path)))))
+  (advent--infer-year-day-from-formats path))
+
+(defun advent--infer-year-day-from-formats (path)
+  "Infer (YEAR DAY) from PATH using configured dir formats.
+PATH is expected to be relative to `advent-root-dir'."
+  (let ((parts (split-string path "/" t)))
+    (when (>= (length parts) 2)
+      (let ((year (advent--parse-int-segment (car parts) advent-year-dir-format))
+            (day (advent--parse-int-segment (cadr parts) advent-day-dir-format)))
+        (when (and year day)
+          (list year day))))))
+
+(defun advent--parse-int-segment (segment format-string)
+  "Parse integer from SEGMENT using FORMAT-STRING.
+Return nil when SEGMENT does not match FORMAT-STRING."
+  (when-let ((parts (advent--split-int-format format-string)))
+    (pcase-let ((`(,prefix ,suffix) parts))
+      (let* ((segment-len (length segment))
+             (prefix-len (length prefix))
+             (suffix-len (length suffix))
+             (digits-end (- segment-len suffix-len)))
+        (when (and (string-prefix-p prefix segment)
+                   (string-suffix-p suffix segment)
+                   (> digits-end prefix-len))
+          (let ((digits (substring segment prefix-len digits-end)))
+            (when (string-match-p "\\`[0-9]+\\'" digits)
+              (let ((n (string-to-number digits)))
+                (when (string= segment (format format-string n))
+                  n)))))))))
+
+(defun advent--split-int-format (format-string)
+  "Return (PREFIX SUFFIX) when FORMAT-STRING has a single integer directive."
+  (when (string-match "\\`\\([^%]*\\)%[0-9]*d\\([^%]*\\)\\'" format-string)
+    (list (match-string 1 format-string)
+          (match-string 2 format-string))))
 
 (defun advent--context-year-day ()
   "Infer (YEAR DAY) from the current buffer location in `advent-root-dir'.

@@ -10,19 +10,15 @@
   (should (equal (advent--infer-year-day-from-path "year2024/day05/src/")
                  (list 2024 5))))
 
-(ert-deftest advent-infer-year-day-immediate-without-prefixes ()
-  "Accept numeric year/day immediately under root without prefixes."
-  (should (equal (advent--infer-year-day-from-path "2024/05/")
-                 (list 2024 5)))
-  (should (equal (advent--infer-year-day-from-path "2024/05/src/")
-                 (list 2024 5))))
+(ert-deftest advent-infer-year-day-default-formats-reject-without-prefixes ()
+  "Reject numeric year/day paths that do not match default formats."
+  (should-not (advent--infer-year-day-from-path "2024/05/"))
+  (should-not (advent--infer-year-day-from-path "2024/05/src/")))
 
-(ert-deftest advent-infer-year-day-mixed-prefixes ()
-  "Accept mixed cases where one component has a prefix."
-  (should (equal (advent--infer-year-day-from-path "2024/day05/")
-                 (list 2024 5)))
-  (should (equal (advent--infer-year-day-from-path "year2024/05/")
-                 (list 2024 5))))
+(ert-deftest advent-infer-year-day-default-formats-reject-mixed-prefixes ()
+  "Reject paths when one component does not match configured formats."
+  (should-not (advent--infer-year-day-from-path "2024/day05/"))
+  (should-not (advent--infer-year-day-from-path "year2024/05/")))
 
 (ert-deftest advent-infer-year-day-not-immediate-under-root ()
   "Reject when year/day are not the first two components."
@@ -33,6 +29,21 @@
   "Reject segments that are not clean year/day components."
   (should-not (advent--infer-year-day-from-path "foo2024/bar05/"))
   (should-not (advent--infer-year-day-from-path "2024/05x/")))
+
+(ert-deftest advent-infer-year-day-uses-configured-dir-formats ()
+  "Infer year/day from the first two components using dir formats."
+  (let ((advent-year-dir-format "y%04d")
+        (advent-day-dir-format "d%02d"))
+    (should (equal (advent--infer-year-day-from-path "y2024/d05/")
+                   (list 2024 5)))
+    (should (equal (advent--infer-year-day-from-path "y2024/d05/src/")
+                   (list 2024 5)))))
+
+(ert-deftest advent-infer-year-day-custom-formats-reject-default-layout ()
+  "Reject old default layout when configured formats are changed."
+  (let ((advent-year-dir-format "y%04d")
+        (advent-day-dir-format "d%02d"))
+    (should-not (advent--infer-year-day-from-path "2024/05/src/"))))
 
 (provide 'path-infer-tests)
 ;;; path-infer-tests.el ends here
