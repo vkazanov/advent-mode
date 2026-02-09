@@ -9,8 +9,10 @@
 
 (package-file "advent-mode.el")
 
-(script "test" "echo \"Error: no test specified\" && exit 1")
-
 (source "gnu")
 
 (depends-on "emacs" "29.1")
+
+(development
+ (depends-on "package-lint")
+ (depends-on "ert-runner"))
