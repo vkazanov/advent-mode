@@ -1,4 +1,4 @@
-;;; path-infer-tests.el --- Tests for advent--infer-year-day-from-path
+;;; path-infer-test.el --- Tests for advent--infer-year-day-from-path  -*- lexical-binding: t; -*-
 
 (require 'ert)
 (require 'advent-mode)
@@ -53,5 +53,5 @@
         (advent-day-dir-format "d%02d"))
     (should-not (advent--infer-year-day-from-path "2024/05/src/"))))
 
-(provide 'path-infer-tests)
-;;; path-infer-tests.el ends here
+(provide 'path-infer-test)
+;;; path-infer-test.el ends here

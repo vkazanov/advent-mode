@@ -1,4 +1,4 @@
-;;; url-test.el --- Tests for Advent URL builders
+;;; url-test.el --- Tests for Advent URL builders  -*- lexical-binding: t; -*-
 
 (require 'advent-mode)
 (require 'ert)
@@ -12,4 +12,5 @@
   (should (string= (advent--answer-url 2024 5)
                  "https://adventofcode.com/2024/day/5/answer")))
 
+(provide 'url-test)
 ;;; url-test.el ends here

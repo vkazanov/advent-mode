@@ -1,4 +1,5 @@
-;;; aoc-year-day-test.el --- Tests for default year/day
+;;; aoc-year-day-test.el --- Tests for default year/day  -*- lexical-binding: t; -*-
+
 (require 'advent-mode)
 (require 'ert)
 
@@ -34,4 +35,5 @@
                   (advent-test--time 2027 1 1 0 0 0))
                  '(2026 25))))
 
+(provide 'aoc-year-day-test)
 ;;; aoc-year-day-test.el ends here

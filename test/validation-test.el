@@ -39,4 +39,5 @@
   (should-error (advent-create-day 2024 26 "/tmp") :type 'user-error)
   (should-error (advent-create-day 2014 1 "/tmp") :type 'user-error))
 
+(provide 'validation-test)
 ;;; validation-test.el ends here

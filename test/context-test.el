@@ -70,4 +70,5 @@
       (should (equal (advent--context-year-day) '(2026 3))))))
 
 
+(provide 'context-test)
 ;;; context-test.el ends here
