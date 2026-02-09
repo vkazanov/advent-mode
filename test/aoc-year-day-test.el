@@ -29,7 +29,7 @@
 (ert-deftest default-aoc-year-day-non-december ()
   (should (equal (advent--default-aoc-year-day
                   (advent-test--time 2026 11 30 12 0 0))
-                 '(2025 25)))
+                 '(2025 12)))
   (should (equal (advent--default-aoc-year-day
                   (advent-test--time 2027 1 1 0 0 0))
                  '(2026 25))))

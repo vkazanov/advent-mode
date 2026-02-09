@@ -30,6 +30,14 @@
   (should-not (advent--infer-year-day-from-path "foo2024/bar05/"))
   (should-not (advent--infer-year-day-from-path "2024/05x/")))
 
+(ert-deftest advent-infer-year-day-rejects-invalid-aoc-ranges ()
+  "Reject inferred year/day that are out of AoC range."
+  (should-not (advent--infer-year-day-from-path "year2024/day00/"))
+  (should-not (advent--infer-year-day-from-path "year2024/day26/"))
+  (should-not (advent--infer-year-day-from-path "year2014/day01/"))
+  (should-not (advent--infer-year-day-from-path "year9999/day01/"))
+  (should-not (advent--infer-year-day-from-path "year2025/day13/")))
+
 (ert-deftest advent-infer-year-day-uses-configured-dir-formats ()
   "Infer year/day from the first two components using dir formats."
   (let ((advent-year-dir-format "y%04d")

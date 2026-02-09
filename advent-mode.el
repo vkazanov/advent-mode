@@ -144,8 +144,39 @@ and DAY=25."
   (pcase-let ((`(,_sec ,_min ,_hour ,dom ,mon ,year ,_dow ,_dst ,_tz)
                (decode-time (or time (current-time)) advent-timezone)))
     (if (= mon 12)
-        (list year (min dom 25))
-      (list (1- year) 25))))
+        (list year (min dom (advent--max-day year)))
+      (list (1- year) (advent--max-day (1- year))))))
+
+(defconst advent--first-year 2015
+  "First year of Advent of Code.")
+
+(defconst advent--max-day-exceptions '((2025 . 12))
+  "Alist of (YEAR . MAX-DAY) for years with fewer than 25 puzzles.")
+
+(defun advent--max-day (year)
+  "Return the maximum puzzle day for YEAR."
+  (or (alist-get year advent--max-day-exceptions) 25))
+
+(defun advent--current-year ()
+  "Return the current calendar year."
+  (decoded-time-year (decode-time nil advent-timezone)))
+
+(defun advent--valid-year-day-p (year day)
+  "Return non-nil when YEAR/DAY is a valid AoC problem coordinate."
+  (and (integerp year)
+       (integerp day)
+       (>= year advent--first-year)
+       (<= year (advent--current-year))
+       (>= day 1)
+       (<= day (advent--max-day year))))
+
+(defun advent--ensure-valid-year-day-or-error (year day)
+  "Return (YEAR DAY) when valid, otherwise signal `user-error'."
+  (unless (advent--valid-year-day-p year day)
+    (user-error "Invalid AoC year/day: year=%S day=%S (year %d..%d, day 1..%d)"
+                year day advent--first-year (advent--current-year)
+                (advent--max-day year)))
+  (list year day))
 
 (defun advent--problem-dir (year day root)
   "YEAR/DAY problem directory path under ROOT."
@@ -198,18 +229,13 @@ and DAY=25."
         (file-name-as-directory (file-relative-name abs root))))))
 
 (defun advent--infer-year-day-from-path (path)
-  "Infer (YEAR DAY) from PATH.
-PATH is expected to be relative to `advent-root-dir'."
-  (advent--infer-year-day-from-formats path))
-
-(defun advent--infer-year-day-from-formats (path)
   "Infer (YEAR DAY) from PATH using configured dir formats.
 PATH is expected to be relative to `advent-root-dir'."
   (let ((parts (split-string path "/" t)))
     (when (>= (length parts) 2)
       (let ((year (advent--parse-int-segment (car parts) advent-year-dir-format))
             (day (advent--parse-int-segment (cadr parts) advent-day-dir-format)))
-        (when (and year day)
+        (when (and year day (advent--valid-year-day-p year day))
           (list year day))))))
 
 (defun advent--parse-int-segment (segment format-string)
@@ -249,7 +275,7 @@ Signal `user-error' otherwise."
          (y (or year (car ctx)))
          (d (or day (cadr ctx))))
     (unless (and y d) (user-error "Problem not detected"))
-    (list y d)))
+    (advent--ensure-valid-year-day-or-error y d)))
 
 (defun advent--default-answer ()
   "Return default answer from region or thing at point."
@@ -416,8 +442,9 @@ Returns response body as string."
   "Prompt for AoC YEAR and DAY.
 Default values come from `advent--default-aoc-year-day' with TIME."
   (pcase-let ((`(,year ,day) (advent--default-aoc-year-day time)))
-    (list (read-number "Year: " year)
-          (read-number "Day: "  day))))
+    (advent--ensure-valid-year-day-or-error
+     (read-number "Year: " year)
+     (read-number "Day: "  day))))
 
 ;;;; Commands
 
@@ -451,11 +478,12 @@ Given a prefix arg, prompt for a YEAR and DAY."
   (interactive
    (if current-prefix-arg (advent--prompt-year-day (current-time))
      (list nil nil)))
-  (pcase-let ((`(,year ,day)
-               ;; Priority: args -> context -> prompt
-               (or (and (and year day) (list year day))
-                   (advent--context-year-day)
-                   (advent--prompt-year-day (current-time)))))
+  (pcase-let* ((`(,year ,day)
+                ;; Priority: args -> context -> prompt
+                (or (and (and year day) (list year day))
+                    (advent--context-year-day)
+                    (advent--prompt-year-day (current-time))))
+               (`(,year ,day) (advent--ensure-valid-year-day-or-error year day)))
     (eww-browse-url (advent--problem-url year day))))
 
 ;;;###autoload
@@ -509,6 +537,7 @@ as `advent-root-dir' is set."
                            (advent--read-existing-year-day root (current-time))))
                  (year (or year (nth 0 picked)))
                  (day  (or day  (nth 1 picked)))
+                 (`(,year ,day) (advent--ensure-valid-year-day-or-error year day))
                  (dir  (or (nth 2 picked)
                            (advent--problem-dir year day root))))
       (unless (file-directory-p dir)
@@ -525,9 +554,10 @@ When a new directory is created, optionally copy `advent-new-files' into
 it, then offer to open the problem page and download/open the input
 file."
   (interactive (advent--prompt-year-day (current-time)))
-  (let* ((root (or root (advent--root)
-                   (user-error "Variable advent-root-dir is not set")))
-         (dir (advent--problem-dir year day root)))
+  (pcase-let* ((`(,year ,day) (advent--ensure-valid-year-day-or-error year day))
+               (root (or root (advent--root)
+                         (user-error "Variable advent-root-dir is not set")))
+               (dir (advent--problem-dir year day root)))
     (if (file-directory-p dir)
         (when (y-or-n-p "Day dir already exists.  Open it? ")
           (advent-open-day year day root))
