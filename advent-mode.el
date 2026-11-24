@@ -119,7 +119,7 @@ See:
 ;;;; Session providers
 
 (defun advent-session-from-auth-source ()
-  "Return AoC session cookie from auth-source, or nil if not found."
+  "Return AoC session cookie using `auth-source', or nil if not found."
   (when-let*
       ((entry (car (auth-source-search
                     :host "adventofcode.com"
@@ -127,6 +127,7 @@ See:
                     :require '(:secret)
                     :max 1))))
     (let ((secret (plist-get entry :secret)))
+      (message "Session cookie found in auth-source")
       (or (and (functionp secret) (funcall secret))
           (and (stringp secret) secret)))))
 
