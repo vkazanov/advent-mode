@@ -133,7 +133,7 @@ See:
 
 (defun advent-session-prompt ()
   "Prompt the user for an AoC session cookie string."
-  (read-string "Advent of Code session cookie: "))
+  (read-passwd "Advent of Code session cookie: "))
 
 ;;;; Helper functions.
 
