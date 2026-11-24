@@ -150,7 +150,8 @@ and DAY=25."
 (defconst advent--first-year 2015
   "First year of Advent of Code.")
 
-(defconst advent--max-day-exceptions '((2025 . 12))
+(defconst advent--max-day-exceptions '((2025 . 12)
+                                       (2026 . 12))
   "Alist of (YEAR . MAX-DAY) for years with fewer than 25 puzzles.")
 
 (defun advent--max-day (year)
@@ -223,7 +224,7 @@ and DAY=25."
 
 (defun advent--relative-dir (dir)
   "Return normalized DIR path relative to AoC root, or nil."
-  (when-let ((root (advent--root)))
+  (when-let* ((root (advent--root)))
     (let ((abs (advent--normalize-dir dir)))
       (when (file-in-directory-p abs root)
         (file-name-as-directory (file-relative-name abs root))))))
@@ -241,7 +242,7 @@ PATH is expected to be relative to `advent-root-dir'."
 (defun advent--parse-int-segment (segment format-string)
   "Parse integer from SEGMENT using FORMAT-STRING.
 Return nil when SEGMENT does not match FORMAT-STRING."
-  (when-let ((parts (advent--split-int-format format-string)))
+  (when-let* ((parts (advent--split-int-format format-string)))
     (pcase-let ((`(,prefix ,suffix) parts))
       (let* ((segment-len (length segment))
              (prefix-len (length prefix))
@@ -265,7 +266,7 @@ Return nil when SEGMENT does not match FORMAT-STRING."
 (defun advent--context-year-day ()
   "Infer (YEAR DAY) from the current buffer location in `advent-root-dir'.
 Return nil if not in the root dir."
-  (when-let ((rel (advent--relative-dir (advent--current-buffer-dir))))
+  (when-let* ((rel (advent--relative-dir (advent--current-buffer-dir))))
     (advent--infer-year-day-from-path rel)))
 
 (defun advent--ensure-context-or-error (year day)

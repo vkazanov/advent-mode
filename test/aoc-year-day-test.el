@@ -10,30 +10,30 @@
 
 (ert-deftest default-aoc-year-day-december-in-range ()
   (should (equal (advent--default-aoc-year-day
-                  (advent-test--time 2026 12 1 0 0 0))
-                 '(2026 1)))
+                  (advent-test--time 2030 12 1 0 0 0))
+                 '(2030 1)))
   (should (equal (advent--default-aoc-year-day
-                  (advent-test--time 2026 12 15 12 0 0))
-                 '(2026 15)))
+                  (advent-test--time 2030 12 15 12 0 0))
+                 '(2030 15)))
   (should (equal (advent--default-aoc-year-day
-                  (advent-test--time 2026 12 25 23 59 59))
-                 '(2026 25))))
+                  (advent-test--time 2030 12 25 23 59 59))
+                 '(2030 25))))
 
-(ert-deftest default-aoc-year-day-december-after-25 ()
+(ert-deftest default-aoc-year-day-december-after-26 ()
   (should (equal (advent--default-aoc-year-day
-                  (advent-test--time 2026 12 26 0 0 0))
-                 '(2026 25)))
+                  (advent-test--time 2030 12 26 0 0 0))
+                 '(2030 25)))
   (should (equal (advent--default-aoc-year-day
-                  (advent-test--time 2026 12 31 23 59 59))
-                 '(2026 25))))
+                  (advent-test--time 2030 12 31 23 59 59))
+                 '(2030 25))))
 
 (ert-deftest default-aoc-year-day-non-december ()
   (should (equal (advent--default-aoc-year-day
-                  (advent-test--time 2026 11 30 12 0 0))
-                 '(2025 12)))
+                  (advent-test--time 2030 11 30 12 0 0))
+                 '(2029 25)))
   (should (equal (advent--default-aoc-year-day
-                  (advent-test--time 2027 1 1 0 0 0))
-                 '(2026 25))))
+                  (advent-test--time 2030 1 1 0 0 0))
+                 '(2029 25))))
 
 (provide 'aoc-year-day-test)
 ;;; aoc-year-day-test.el ends here
