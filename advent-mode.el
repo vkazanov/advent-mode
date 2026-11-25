@@ -144,8 +144,8 @@ Surrounding whitespace is removed.  Signal `user-error' if nothing is entered."
 (defun advent--default-aoc-year-day (time)
   "Return (YEAR DAY) default AoC puzzle for TIME.
 Use `advent-timezone'.  If TIME is in December (AoC timezone) then use
-that YEAR and DAY=min(day-of-month, 25).  Otherwise use previous YEAR
-and DAY=25."
+that YEAR and DAY=min(day-of-month, `advent--max-day').  Otherwise use
+the previous YEAR and its last day."
   (pcase-let ((`(,_sec ,_min ,_hour ,dom ,mon ,year ,_dow ,_dst ,_tz)
                (decode-time (or time (current-time)) advent-timezone)))
     (if (= mon 12)
@@ -155,13 +155,12 @@ and DAY=25."
 (defconst advent--first-year 2015
   "First year of Advent of Code.")
 
-(defconst advent--max-day-exceptions '((2025 . 12)
-                                       (2026 . 12))
-  "Alist of (YEAR . MAX-DAY) for years with fewer than 25 puzzles.")
+(defconst advent--first-12-day-year 2025
+  "First year of Advent of Code with 12 puzzles instead of 25.")
 
 (defun advent--max-day (year)
   "Return the maximum puzzle day for YEAR."
-  (or (alist-get year advent--max-day-exceptions) 25))
+  (if (>= year advent--first-12-day-year) 12 25))
 
 (defun advent--current-year ()
   "Return the current calendar year."
@@ -179,9 +178,9 @@ and DAY=25."
 (defun advent--ensure-valid-year-day-or-error (year day)
   "Return (YEAR DAY) when valid, otherwise signal `user-error'."
   (unless (advent--valid-year-day-p year day)
-    (user-error "Invalid AoC year/day: year=%S day=%S (year %d..%d, day 1..%d)"
+    (user-error "Invalid AoC year/day: year=%S day=%S (year %d..%d, day 1..%s)"
                 year day advent--first-year (advent--current-year)
-                (advent--max-day year)))
+                (if (integerp year) (advent--max-day year) "12 or 25")))
   (list year day))
 
 (defun advent--problem-dir (year day root)
