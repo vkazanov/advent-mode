@@ -29,22 +29,19 @@
       (should (stringp ans))
       (should (equal ans "123")))))
 
-(ert-deftest default-answer-symbol-at-point ()
+(ert-deftest default-answer-symbol-at-point-is-not-used ()
+  "A word at point is not a candidate answer; only numbers and regions are."
   (with-temp-buffer
     (insert "  foo  ")
     (goto-char (+ (point-min) 3))
-    (let ((ans (advent--default-answer)))
-      (should (stringp ans))
-      (should (equal ans "foo")))))
+    (should (equal (advent--default-answer) ""))))
 
-(ert-deftest default-answer-line-fallback-trims-newline-and-spaces ()
+(ert-deftest default-answer-line-is-not-used ()
+  "A whole line is never pre-filled as the answer."
   (with-temp-buffer
-    ;; Ensure we don't hit number/symbol branches: point on whitespace.
-    (insert "   abc def   \n")
-    (goto-char (point-min)) ; on leading spaces
-    (let ((ans (advent--default-answer)))
-      (should (stringp ans))
-      (should (equal ans "abc def")))))
+    (insert "Answer is foo\n")
+    (goto-char (point-min))
+    (should (equal (advent--default-answer) ""))))
 
 
 (provide 'default-answer-test)

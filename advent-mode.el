@@ -285,15 +285,21 @@ Signal `user-error' otherwise."
     (advent--ensure-valid-year-day-or-error y d)))
 
 (defun advent--default-answer ()
-  "Return default answer from region or thing at point."
+  "Return default answer from the region or the number at point, or \"\"."
   (string-trim
    (format "%s"
            (or (and (use-region-p)
                     (buffer-substring-no-properties (region-beginning) (region-end)))
                (thing-at-point 'number t)
-               (thing-at-point 'symbol t)
-               (thing-at-point 'line t)
                ""))))
+
+(defun advent--ensure-answer-or-error (answer)
+  "Return ANSWER without surrounding whitespace.
+Signal `user-error' if nothing is left."
+  (let ((trimmed (string-trim (format "%s" answer))))
+    (when (string-empty-p trimmed)
+      (user-error "No answer given"))
+    trimmed))
 
 (defun advent--existing-day-entries (root)
   "Return a list of (YEAR DAY DIR) for AoC days under ROOT.
@@ -524,23 +530,24 @@ Infer year/day using the current directory.  Return server response."
    (progn
      (advent--ensure-context-or-error nil nil)
      (let* ((def (advent--default-answer))
-            (ans (read-string "Answer: " def nil))
+            (ans (advent--ensure-answer-or-error (read-string "Answer: " def nil)))
             (lvl (completing-read "Level: " '("1" "2") nil t nil 'advent-submit-level-history "1")))
        (list ans lvl nil nil))))
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
-    (advent--ensure-cookie-or-error)
-    (let ((resp (advent--http-post
-                 (advent--answer-url year day)
-                 (format "level=%s&answer=%s"
-                         (url-hexify-string (format "%s" level))
-                         (url-hexify-string (format "%s" answer))))))
-      (with-current-buffer (get-buffer-create "*AoC Submit*")
-        (erase-buffer)
-        (insert resp)
-        (goto-char (point-min))
-        (display-buffer (current-buffer)))
-      (message "Submitted answer for %d day %d (level %s)" year day level)
-      resp)))
+    (let ((answer (advent--ensure-answer-or-error answer)))
+      (advent--ensure-cookie-or-error)
+      (let ((resp (advent--http-post
+                   (advent--answer-url year day)
+                   (format "level=%s&answer=%s"
+                           (url-hexify-string (format "%s" level))
+                           (url-hexify-string answer)))))
+        (with-current-buffer (get-buffer-create "*AoC Submit*")
+          (erase-buffer)
+          (insert resp)
+          (goto-char (point-min))
+          (display-buffer (current-buffer)))
+        (message "Submitted answer for %d day %d (level %s)" year day level)
+        resp))))
 
 ;;;###autoload
 (defun advent-open-day (&optional year day root)
