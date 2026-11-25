@@ -340,7 +340,8 @@ Each element is (DISPLAY . (YEAR DAY DIR))."
 Default tries `advent--default-aoc-year-day' with TIME."
   (let* ((choices (advent--existing-days root)))
     (unless choices
-      (user-error "No AoC day directories found under %s" root))
+      (user-error "No AoC day directories found under %s (use M-x advent-create-day)"
+                  root))
     (pcase-let* ((`(,defy ,defd) (advent--default-aoc-year-day time))
                  (defkey (advent--format-year-day defy defd))
                  (default (or (assoc defkey choices) (car choices)))
