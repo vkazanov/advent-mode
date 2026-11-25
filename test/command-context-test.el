@@ -85,6 +85,22 @@
      (should (equal written
                     (expand-file-name "year2024/day05/input.txt" root))))))
 
+(ert-deftest advent-fetch-input-existing-input-opens-without-cookie-or-network ()
+  "An input already on disk is opened without checking the cookie or downloading."
+  (advent-test--outside-day
+   (let ((input (expand-file-name "year2024/day05/input.txt" root))
+         opened)
+     (make-directory (file-name-directory input) t)
+     (with-temp-file input (insert "1 2 3\n"))
+     (cl-letf (((symbol-function 'advent--ensure-cookie-or-error)
+                (lambda () (error "cookie must not be checked")))
+               ((symbol-function 'advent--write-url-to-file)
+                (lambda (&rest _) (error "network must not be called")))
+               ((symbol-function 'find-file-other-window)
+                (lambda (file &rest _) (setq opened file))))
+       (advent-fetch-input 2024 5))
+     (should (equal opened input)))))
+
 (ert-deftest advent-create-day-fetches-input-under-root ()
   "Creating a day and accepting the download saves the input under root."
   (advent-test--outside-day

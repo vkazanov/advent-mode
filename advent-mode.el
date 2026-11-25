@@ -513,18 +513,18 @@ Given a prefix arg, prompt for a YEAR and DAY."
 
 ;;;###autoload
 (defun advent-fetch-input (&optional year day)
-  "Fetch (if needed) and open the input for YEAR and DAY.
-Infer year/day using the current directory."
+  "Open the input for YEAR and DAY, downloading it first if it is missing.
+Downloading needs the AoC session cookie; opening an existing input does
+not.  Infer year/day using the current directory."
   (interactive)
-  (pcase-let ((root (advent--root-or-error))
-              (`(,year ,day) (advent--ensure-context-or-error year day)))
-    (advent--ensure-cookie-or-error)
-    (let ((dst (advent--input-path year day root)))
-      (if (file-exists-p dst)
-          (find-file-other-window dst)
-        (advent--write-url-to-file (advent--input-url year day) dst)
-        (message "%s saved." dst)
-        (find-file-other-window dst)))))
+  (pcase-let* ((root (advent--root-or-error))
+               (`(,year ,day) (advent--ensure-context-or-error year day))
+               (dst (advent--input-path year day root)))
+    (unless (file-exists-p dst)
+      (advent--ensure-cookie-or-error)
+      (advent--write-url-to-file (advent--input-url year day) dst)
+      (message "%s saved." dst))
+    (find-file-other-window dst)))
 
 ;;;###autoload
 (defun advent-submit-answer (answer level &optional year day)
