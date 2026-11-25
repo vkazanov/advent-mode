@@ -56,15 +56,15 @@ configuration using =package-vc=:
 
 - Enable =global-advent-mode=, set =advent-root-dir= and then:
 
-  - =M-x advent-login= to store your AoC session cookie when prompted
-
-    - To retrieve the cookie, login into adventofcode.com in your browser, inspect
-      cookies, copy the value of the "session" cookie
-
-    - it is possible to use auth source (the =.authinfo= file) to store the cookie, see
-      =advent-session-provider= for comments
-
   - Anywhere (these work from any directory):
+
+    - =M-x advent-login= to store your AoC session cookie when prompted
+
+      - To retrieve the cookie, login into adventofcode.com in your browser, inspect
+        cookies, copy the value of the "session" cookie
+
+      - it is possible to use auth source (the =.authinfo= file) to store the cookie, see
+        =advent-session-provider= for comments
 
     - =M-x advent-open-day= to open an existing AoC day directory
 
