@@ -466,6 +466,9 @@ When called interactively with a prefix arg, always prompt for SESSION."
                      (advent--cookie-get)
                      (advent-session-prompt)
                      (user-error "No session cookie available"))))
+    ;; Run url.el's one-time setup first: it reads the cookie file and
+    ;; would otherwise overwrite the cookie stored below.
+    (url-do-setup)
     (url-cookie-store "session" session
                       "Fri, 25 Dec 2031 00:00:00 GMT"
                       ".adventofcode.com" "/" t))
