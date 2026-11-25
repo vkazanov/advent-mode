@@ -52,19 +52,15 @@ configuration using =package-vc=:
   (keymap-global-set "C-c a" advent-command-map))
 #+end_src
 
+
 * Quick Start
 
 - Enable =global-advent-mode=, set =advent-root-dir= and then:
 
   - Anywhere (these work from any directory):
 
-    - =M-x advent-login= to store your AoC session cookie when prompted
-
-      - To retrieve the cookie, login into adventofcode.com in your browser, inspect
-        cookies, copy the value of the "session" cookie
-
-      - it is possible to use auth source (the =.authinfo= file) to store the cookie, see
-        =advent-session-provider= for comments
+    - =M-x advent-login= to store your AoC session cookie (see [[*Session cookie][Session cookie]]
+      for where to get it and how to keep it in =.authinfo=)
 
     - =M-x advent-open-day= to open an existing AoC day directory
 
@@ -88,4 +84,42 @@ Notes:
 - The first time you fetch an input, Advent Mode will download it using your AoC session
   cookie.
 
-- If the cookie is missing or expired, you'll be prompted to log in.
+- If no cookie is stored, you'll be offered to log in. If the server has expired your
+  session, the request fails instead; see [[*Session cookie][Session cookie]].
+
+* Session cookie
+
+Advent of Code has no API keys. The site recognizes you by a cookie called =session=,
+which your browser receives when you log in. Puzzle inputs differ per user, so Advent
+Mode needs this cookie to download your input and to submit answers. Problem pages
+load without it, but part two of a puzzle only shows up when you are logged in.
+
+** Getting the cookie
+
+1. Log in at https://adventofcode.com in your browser.
+
+2. Open the developer tools (usually =F12=) and find the cookies for
+   =adventofcode.com=: the /Storage/ tab in Firefox, /Application/ in Chrome.
+
+3. Copy the value of the =session= cookie, a long string of hexadecimal digits.
+
+Treat it like a password: anyone who has it is logged in as you.
+
+** Giving it to Advent Mode
+
+Run =M-x advent-login=. It asks =advent-session-provider= for the cookie and prompts
+you only if that finds nothing. With a prefix argument (=C-u M-x advent-login=) it
+always prompts. Commands that need the cookie offer to run =advent-login= when none is
+stored.
+
+The default provider, =advent-session-from-auth-source=, looks the cookie up with
+auth-source. Put a line like this in =~/.authinfo.gpg= (or any file listed in
+=auth-sources=) and you never have to paste it again:
+
+#+begin_example
+machine adventofcode.com login session password 53616c7465645f5f...
+#+end_example
+
+To be prompted every time instead, set =advent-session-provider= to
+=advent-session-prompt=. Any function that takes no arguments and returns the cookie
+string works as a provider.
