@@ -5,7 +5,7 @@
          "Advent of Code mode")
 
 (website-url "https://github.com/vkazanov/advent-mode")
-(keywords "lisp")
+(keywords "tools")
 
 (package-file "advent-mode.el")
 

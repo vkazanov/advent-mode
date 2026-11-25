@@ -4,7 +4,7 @@
 ;; Copyright (C) 2026  Vladimir Kazanov
 
 ;; Author: Vladimir Kazanov <@vkazanov>
-;; Keywords: lisp
+;; Keywords: tools
 ;; Maintainer: Vladimir Kazanov <@vkazanov>
 ;; Package-Requires: ((emacs "29.1"))
 ;; URL: https://github.com/vkazanov/advent-mode
@@ -33,7 +33,7 @@
 ;;
 ;;  - Manage the AoC session cookie
 ;;
-;;  - Optionally persist the cookie in =.authinfo=
+;;  - Optionally read the cookie from .authinfo
 ;;
 ;;  - Create a new AoC day (with boilerplate files)
 ;;

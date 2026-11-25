@@ -2,6 +2,8 @@
 
 EMACS ?= emacs
 EL_FILES := $(shell find . -maxdepth 1 -name "advent*.el" -print | sort)
+BYTE_COMPILE = $(EMACS) -Q --batch -L . --eval '(setq byte-compile-error-on-warn t)' \
+	-f batch-byte-compile
 
 test: clean
 	eask test ert-runner
@@ -9,10 +11,10 @@ test: clean
 lint: clean
 	eask lint package
 	eask lint checkdoc
-	$(EMACS) -Q --batch -L . -f batch-byte-compile $(EL_FILES)
+	$(BYTE_COMPILE) $(EL_FILES)
 
 compile: clean
-	$(EMACS) -Q --batch -L . -f batch-byte-compile $(EL_FILES)
+	$(BYTE_COMPILE) $(EL_FILES)
 
 clean:
 	find . -name "*.elc" -o -name "*.eln" | xargs -r rm -f
