@@ -43,6 +43,13 @@
     (goto-char (point-min))
     (should (equal (advent--default-answer) ""))))
 
+(ert-deftest default-answer-number-text-is-preserved ()
+  "The number at point is taken verbatim, not re-printed from a Lisp number."
+  (dolist (text '("0042" "1.50" "3.14159265358979323846"))
+    (with-temp-buffer
+      (insert "  " text "  ")
+      (goto-char (+ (point-min) 3))
+      (should (equal (advent--default-answer) text)))))
 
 (provide 'default-answer-test)
 ;;; default-answer-test.el ends here

@@ -42,6 +42,21 @@
               ((symbol-function 'completing-read)
                (lambda (&rest _) (error "level prompted"))))
       (should-error (call-interactively #'advent-submit-answer) :type 'user-error))))
+(ert-deftest advent-submit-interactive-prompt-names-target ()
+  "The answer prompt names the year and day the answer is posted to."
+  (advent-test--in-day 2024 5
+    (let (prompt url)
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (p &rest _) (setq prompt p) "42"))
+                ((symbol-function 'completing-read) (lambda (&rest _) "1"))
+                ((symbol-function 'advent--ensure-cookie-or-error) #'ignore)
+                ((symbol-function 'advent--http-post)
+                 (lambda (u _data) (setq url u) "ok"))
+                ((symbol-function 'display-buffer) #'ignore))
+        (call-interactively #'advent-submit-answer))
+      (should (string-match-p "2024" prompt))
+      (should (string-match-p "05" prompt))
+      (should (equal url (advent--answer-url 2024 5))))))
 
 (provide 'submit-answer-test)
 ;;; submit-answer-test.el ends here

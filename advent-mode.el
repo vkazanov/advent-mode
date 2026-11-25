@@ -289,13 +289,17 @@ Signal `user-error' otherwise."
     (advent--ensure-valid-year-day-or-error y d)))
 
 (defun advent--default-answer ()
-  "Return default answer from the region or the number at point, or \"\"."
-  (string-trim
-   (format "%s"
-           (or (and (use-region-p)
-                    (buffer-substring-no-properties (region-beginning) (region-end)))
-               (thing-at-point 'number t)
-               ""))))
+  "Return default answer from the region or the number at point, or \"\".
+The number is returned as written in the buffer, so leading zeros and
+decimal digits survive."
+  (let ((bounds (and (not (use-region-p))
+                     (bounds-of-thing-at-point 'number))))
+    (string-trim
+     (cond ((use-region-p)
+            (buffer-substring-no-properties (region-beginning) (region-end)))
+           (bounds
+            (buffer-substring-no-properties (car bounds) (cdr bounds)))
+           (t "")))))
 
 (defun advent--ensure-answer-or-error (answer)
   "Return ANSWER without surrounding whitespace.
@@ -532,12 +536,14 @@ not.  Infer year/day using the current directory."
 Infer year/day using the current directory.  Return server response."
   (interactive
    ;; Check context before prompting, so a missing day fails immediately.
-   (progn
-     (advent--ensure-context-or-error nil nil)
-     (let* ((def (advent--default-answer))
-            (ans (advent--ensure-answer-or-error (read-string "Answer: " def nil)))
-            (lvl (completing-read "Level: " '("1" "2") nil t nil 'advent-submit-level-history "1")))
-       (list ans lvl nil nil))))
+   (pcase-let* ((`(,year ,day) (advent--ensure-context-or-error nil nil))
+                (def (advent--default-answer))
+                (ans (advent--ensure-answer-or-error
+                      (read-string (format "Answer for %d day %02d: " year day)
+                                   def nil)))
+                (lvl (completing-read "Level: " '("1" "2") nil t nil
+                                      'advent-submit-level-history "1")))
+     (list ans lvl year day)))
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (let ((answer (advent--ensure-answer-or-error answer)))
       (advent--ensure-cookie-or-error)
