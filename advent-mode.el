@@ -276,7 +276,8 @@ Signal `user-error' otherwise."
   (let* ((ctx (advent--context-year-day))
          (y (or year (car ctx)))
          (d (or day (cadr ctx))))
-    (unless (and y d) (user-error "Problem not detected"))
+    (unless (and y d)
+      (user-error "Not inside an AoC day directory; use M-x advent-open-day first"))
     (advent--ensure-valid-year-day-or-error y d)))
 
 (defun advent--default-answer ()
@@ -510,10 +511,13 @@ Infer year/day using the current directory."
   "Submit ANSWER for LEVEL (1 or 2) for YEAR and DAY.
 Infer year/day using the current directory.  Return server response."
   (interactive
-   (let* ((def (advent--default-answer))
-          (ans (read-string "Answer: " def nil))
-          (lvl (completing-read "Level: " '("1" "2") nil t nil 'advent-submit-level-history "1")))
-     (list ans lvl nil nil)))
+   ;; Check context before prompting, so a missing day fails immediately.
+   (progn
+     (advent--ensure-context-or-error nil nil)
+     (let* ((def (advent--default-answer))
+            (ans (read-string "Answer: " def nil))
+            (lvl (completing-read "Level: " '("1" "2") nil t nil 'advent-submit-level-history "1")))
+       (list ans lvl nil nil))))
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
     (let ((resp (advent--http-post
@@ -592,20 +596,19 @@ when a problem directory is not found."
 
 (defvar-keymap advent-command-map
   :doc "Prefix keymap for Advent of Code commands."
-  "p" #'advent-browse-problem-page
-  "i" #'advent-fetch-input
-  "s" #'advent-submit-answer
+  ;; Global
+  "l" #'advent-login
   "d" #'advent-open-day
-  "c" #'advent-create-day)
+  "c" #'advent-create-day
+  "p" #'advent-browse-problem-page
 
-(defvar-keymap advent-mode-map
-  :doc "Keymap for `advent-mode'."
-  "C-c a" advent-command-map)
+  ;; Local
+  "i" #'advent-fetch-input
+  "s" #'advent-submit-answer)
 
 ;;;###autoload
 (define-minor-mode advent-mode
   "Show AoC year/day and cookie status in the mode line."
-  :keymap advent-mode-map
   :lighter (:eval (advent--mode-line))
   (force-mode-line-update))
 

@@ -17,7 +17,7 @@ A lightweight Emacs minor mode to help manage Advent of Code (AoC) puzzle soluti
 
   - Manage the AoC session cookie
 
-  - Optionally persist the cookie in =.authinfo=
+  - Optionally read the session cookie from =.authinfo=
 
   - Create a new AoC day (with boilerplate files)
 
@@ -47,7 +47,9 @@ configuration using =package-vc=:
   ;; Enable advent-mode when possible in files under advent-root-dir.
   ;; Otherwise, advent-mode can be enabled locally using
   ;; .dir-locals.el.
-  (global-advent-mode 1))
+  (global-advent-mode 1)
+  ;; Bind the commands globally
+  (keymap-global-set "C-c a" advent-command-map))
 #+end_src
 
 * Quick Start
@@ -62,15 +64,24 @@ configuration using =package-vc=:
     - it is possible to use auth source (the =.authinfo= file) to store the cookie, see
       =advent-session-provider= for comments
 
-  - =M-x advent-open-day= to open an existing AoC day directory
+  - Anywhere (these work from any directory):
 
-  - =M-x advent-create-day= to create a new AoC day directory
+    - =M-x advent-open-day= to open an existing AoC day directory
 
-  - =M-x advent-browse-problem-page= to view the current problem page in EWW
+    - =M-x advent-create-day= to create a new AoC day directory
 
-  - =M-x advent-fetch-input= to fetch/open the input for the current day
+    - =M-x advent-browse-problem-page= to view a problem page in EWW (prompts for the
+      year and day when you are not in a day directory)
 
-  - =M-x advent-submit-answer= to submit an answer (prompts for answer and level)
+  - Inside a day directory (these signal an error elsewhere):
+
+    - =M-x advent-fetch-input= to fetch/open the input for the current day
+
+    - =M-x advent-submit-answer= to submit an answer (prompts for answer and level)
+
+- Key bindings: Advent Mode binds no keys but provides the prefix keymap
+  =advent-command-map=. The configuration above binds it to =C-c a=; use any prefix you
+  like.
 
 Notes:
 
