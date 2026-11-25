@@ -218,6 +218,11 @@ the previous YEAR and its last day."
   "Return expanded `advent-root-dir' as a directory name, or nil."
   (when advent-root-dir (advent--normalize-dir advent-root-dir)))
 
+(defun advent--root-or-error ()
+  "Return expanded `advent-root-dir', or signal `user-error' if unset."
+  (or (advent--root)
+      (user-error "Variable advent-root-dir is not set")))
+
 (defun advent--current-buffer-dir ()
   "Return the path of the current buffer file, or `default-directory'."
   (or
@@ -511,9 +516,10 @@ Given a prefix arg, prompt for a YEAR and DAY."
   "Fetch (if needed) and open the input for YEAR and DAY.
 Infer year/day using the current directory."
   (interactive)
-  (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
+  (pcase-let ((root (advent--root-or-error))
+              (`(,year ,day) (advent--ensure-context-or-error year day)))
     (advent--ensure-cookie-or-error)
-    (let ((dst (advent--input-path year day (advent--root))))
+    (let ((dst (advent--input-path year day root)))
       (if (file-exists-p dst)
           (find-file-other-window dst)
         (advent--write-url-to-file (advent--input-url year day) dst)
@@ -549,14 +555,13 @@ Infer year/day using the current directory.  Return server response."
         resp))))
 
 ;;;###autoload
-(defun advent-open-day (&optional year day root)
-  "Open an existing YEAR/DAY problem directory under ROOT.
+(defun advent-open-day (&optional year day)
+  "Open an existing YEAR/DAY problem directory under `advent-root-dir'.
 If YEAR/DAY are not provided (typical interactive use), prompt from
-*existing* days under ROOT so this command works from anywhere as long
-as `advent-root-dir' is set."
+*existing* days so this command works from anywhere as long as
+`advent-root-dir' is set."
   (interactive)
-  (let* ((root (or root (advent--root)
-                   (user-error "Variable advent-root-dir is not set"))))
+  (let* ((root (advent--root-or-error)))
     (pcase-let* ((picked (unless (and year day)
                            (advent--read-existing-year-day root (current-time))))
                  (year (or year (nth 0 picked)))
@@ -569,22 +574,20 @@ as `advent-root-dir' is set."
       (dired dir))))
 
 ;;;###autoload
-(defun advent-create-day (year day &optional root)
-  "Create YEAR/DAY problem directory under ROOT and optionally initialize it.
-ROOT defaults to `advent-root-dir'.  Create the directory if missing.
+(defun advent-create-day (year day)
+  "Create YEAR/DAY directory under `advent-root-dir' and optionally init it.
 If it already exists, suggest opening it via `advent-open-day'.
 
 When a new directory is created, optionally copy `advent-new-files' into
 it, then offer to open the problem page and download/open the input
 file."
   (interactive (advent--prompt-year-day (current-time)))
-  (pcase-let* ((`(,year ,day) (advent--ensure-valid-year-day-or-error year day))
-               (root (or root (advent--root)
-                         (user-error "Variable advent-root-dir is not set")))
+  (pcase-let* ((root (advent--root-or-error))
+               (`(,year ,day) (advent--ensure-valid-year-day-or-error year day))
                (dir (advent--problem-dir year day root)))
     (if (file-directory-p dir)
         (when (y-or-n-p "Day dir already exists.  Open it? ")
-          (advent-open-day year day root))
+          (advent-open-day year day))
       (advent--maybe-create-dir dir)
       (when (and advent-new-files
                  (y-or-n-p "Dir created.  Copy template files into it? "))

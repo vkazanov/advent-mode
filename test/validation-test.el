@@ -32,12 +32,14 @@
   (should-error (advent-browse-problem-page 2014 1) :type 'user-error))
 
 (ert-deftest advent-open-day-rejects-invalid-explicit-values ()
-  (should-error (advent-open-day 2024 0 "/tmp") :type 'user-error)
-  (should-error (advent-open-day 2014 1 "/tmp") :type 'user-error))
+  (let ((advent-root-dir (make-temp-file "aoc-root-" t)))
+    (should-error (advent-open-day 2024 0) :type 'user-error)
+    (should-error (advent-open-day 2014 1) :type 'user-error)))
 
 (ert-deftest advent-create-day-rejects-invalid-explicit-values ()
-  (should-error (advent-create-day 2024 26 "/tmp") :type 'user-error)
-  (should-error (advent-create-day 2014 1 "/tmp") :type 'user-error))
+  (let ((advent-root-dir (make-temp-file "aoc-root-" t)))
+    (should-error (advent-create-day 2024 26) :type 'user-error)
+    (should-error (advent-create-day 2014 1) :type 'user-error)))
 
 (provide 'validation-test)
 ;;; validation-test.el ends here

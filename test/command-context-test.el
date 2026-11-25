@@ -1,6 +1,7 @@
 ;;; command-context-test.el --- Global vs local command behaviour  -*- lexical-binding: t; -*-
 
 (require 'ert)
+(require 'cl-lib)
 (require 'advent-mode)
 
 (defmacro advent-test--outside-day (&rest body)
@@ -57,6 +58,46 @@
                 (lambda (url &rest _) (setq opened url))))
        (advent-browse-problem-page)
        (should (equal opened "https://adventofcode.com/2024/day/5"))))))
+
+(defmacro advent-test--recording-fetch (dst-var &rest body)
+  "Run BODY with network and UI stubbed; record the input path in DST-VAR."
+  (declare (indent 1))
+  `(cl-letf (((symbol-function 'advent--ensure-cookie-or-error) #'ignore)
+             ((symbol-function 'advent--write-url-to-file)
+              (lambda (_url file) (setq ,dst-var file) file))
+             ((symbol-function 'find-file-other-window) #'ignore))
+     ,@body))
+
+(ert-deftest advent-fetch-input-without-root-errors-before-network ()
+  "With explicit year/day but no root, fetching fails without any request."
+  (let ((advent-root-dir nil)
+        written)
+    (advent-test--recording-fetch written
+      (should-error (advent-fetch-input 2024 5) :type 'user-error)
+      (should-not written))))
+
+(ert-deftest advent-fetch-input-explicit-day-writes-under-root ()
+  "With explicit year/day, the input is saved under `advent-root-dir'."
+  (advent-test--outside-day
+   (let (written)
+     (advent-test--recording-fetch written
+       (advent-fetch-input 2024 5))
+     (should (equal written
+                    (expand-file-name "year2024/day05/input.txt" root))))))
+
+(ert-deftest advent-create-day-fetches-input-under-root ()
+  "Creating a day and accepting the download saves the input under root."
+  (advent-test--outside-day
+   (let ((advent-new-files nil)
+         written)
+     (advent-test--recording-fetch written
+       (cl-letf (((symbol-function 'y-or-n-p)
+                  (lambda (prompt) (string-match-p "Download" prompt)))
+                 ((symbol-function 'dired) #'ignore))
+         (advent-create-day 2024 5)))
+     (should (file-directory-p (expand-file-name "year2024/day05/" root)))
+     (should (equal written
+                    (expand-file-name "year2024/day05/input.txt" root))))))
 
 (provide 'command-context-test)
 ;;; command-context-test.el ends here
