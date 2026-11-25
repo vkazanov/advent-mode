@@ -6,7 +6,7 @@ BYTE_COMPILE = $(EMACS) -Q --batch -L . --eval '(setq byte-compile-error-on-warn
 	-f batch-byte-compile
 
 test: clean
-	eask test ert-runner
+	eask test ert test/*.el
 
 lint: clean
 	eask lint package

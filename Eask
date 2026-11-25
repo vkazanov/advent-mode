@@ -14,5 +14,4 @@
 (depends-on "emacs" "29.1")
 
 (development
- (depends-on "package-lint")
- (depends-on "ert-runner"))
+ (depends-on "package-lint"))
