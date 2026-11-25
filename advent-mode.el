@@ -132,8 +132,12 @@ See:
           (and (stringp secret) secret)))))
 
 (defun advent-session-prompt ()
-  "Prompt the user for an AoC session cookie string."
-  (read-passwd "Advent of Code session cookie: "))
+  "Prompt the user for an AoC session cookie string.
+Surrounding whitespace is removed.  Signal `user-error' if nothing is entered."
+  (let ((session (string-trim (read-passwd "Advent of Code session cookie: "))))
+    (when (string-empty-p session)
+      (user-error "No session cookie entered"))
+    session))
 
 ;;;; Helper functions.
 
@@ -356,8 +360,13 @@ Suggest setting the cookie, error otherwise."
   (if (advent--cookie-ok-p) "✓" "✗"))
 
 (defun advent--cookie-get ()
-  "Return AoC session cookie using `advent-session-provider', or nil."
-  (and advent-session-provider (funcall advent-session-provider)))
+  "Return AoC session cookie using `advent-session-provider', or nil.
+An empty string counts as no cookie."
+  (when advent-session-provider
+    (let ((session (funcall advent-session-provider)))
+      (and (stringp session)
+           (not (string-empty-p session))
+           session))))
 
 (defun advent--refresh-mode-lines ()
   "Update mode-lines of `advent-mode' buffers."
