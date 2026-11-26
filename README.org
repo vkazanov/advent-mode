@@ -60,6 +60,19 @@ configuration using =package-vc=:
 
   - Anywhere (these work from any directory):
 
+    - =M-x advent-today= (or =C-c a t= with the example prefix) opens today's
+      puzzle during the Advent of Code event.
+
+      - On the first visit to a new day,
+        it copies =advent-new-files= and opens the problem in EWW with the day directory
+        visible in Dired.
+
+      - If the directory already exists, it opens Dired directly. Use =C-c a i= in Dired
+        when you're ready to fetch input.
+
+      - Outside the event, the command tells you there is no puzzle today.
+        Use =C-u M-x advent-today= at any time to choose a year and day.
+
     - =M-x advent-login= to store your AoC session cookie (see [[*Session cookie][Session cookie]]
       for where to get it and how to keep it in =.authinfo=)
 

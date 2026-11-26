@@ -164,6 +164,16 @@ the previous YEAR and its last day."
   "Return the maximum puzzle day for YEAR."
   (if (>= year advent--first-12-day-year) 12 25))
 
+(defun advent--puzzle-on-date (time timezone)
+  "Return (YEAR DAY) if a puzzle opens on the date of TIME in TIMEZONE."
+  (let* ((date (decode-time time timezone))
+         (year (decoded-time-year date))
+         (day (decoded-time-day date)))
+    (when (and (>= year advent--first-year)
+               (= (decoded-time-month date) 12)
+               (<= day (advent--max-day year)))
+      (list year day))))
+
 (defun advent--current-year ()
   "Return the current calendar year."
   (decoded-time-year (decode-time nil advent-timezone)))
@@ -641,6 +651,32 @@ file."
       (when (y-or-n-p "Download and open the input file? ")
         (advent-fetch-input year day)))))
 
+;;;###autoload
+(defun advent-today (&optional year day)
+  "Visit today's puzzle in `advent-timezone', or the specified YEAR and DAY.
+With a prefix argument, prompt for year/day.
+
+For a new day, copy `advent-new-files' and open the problem in EWW
+alongside Dired.
+
+For an existing day, open its directory in Dired."
+  (interactive (when current-prefix-arg (advent--prompt-year-day (current-time))))
+  (pcase-let* ((`(,year ,day)
+                (if (or year day)
+                    (advent--ensure-valid-year-day-or-error year day)
+                  (or (advent--puzzle-on-date (current-time) advent-timezone)
+                      (user-error "No Advent of Code puzzle today.  Use C-u M-x advent-today to choose a puzzle"))))
+               (root (advent--root-or-error))
+               (dir (advent--problem-dir year day root))
+               (created (advent--maybe-create-dir dir)))
+    (when created
+      (advent--copy-templates advent-new-files dir root))
+    (dired dir)
+    (when created
+      ;; Leave Dired visible while EWW takes over the other window.
+      (switch-to-buffer-other-window (current-buffer))
+      (advent-browse-problem-page year day))))
+
 ;;;; Mode line and modes
 
 (defun advent--mode-line (&optional year day)
@@ -658,6 +694,7 @@ when a problem directory is not found."
 (defvar-keymap advent-command-map
   :doc "Prefix keymap for Advent of Code commands that work anywhere."
   "l" #'advent-login
+  "t" #'advent-today
   "d" #'advent-open-day
   "c" #'advent-create-day
   "p" #'advent-browse-problem-page)

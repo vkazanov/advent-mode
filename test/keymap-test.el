@@ -5,6 +5,7 @@
 
 (defconst advent-test--global-keys
   '(("l" . advent-login)
+    ("t" . advent-today)
     ("d" . advent-open-day)
     ("c" . advent-create-day)
     ("p" . advent-browse-problem-page))

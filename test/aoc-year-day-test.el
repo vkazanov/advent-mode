@@ -14,6 +14,19 @@
   (should (= (advent--max-day 2025) 12))
   (should (= (advent--max-day 2030) 12)))
 
+(ert-deftest advent-puzzle-on-date-follows-local-event-boundaries ()
+  (pcase-dolist (`(,year ,month ,day ,hour ,minute ,second ,expected)
+                 '((2026 12 1 4 59 59 nil)
+                   (2026 12 1 5 0 0 (2026 1))
+                   (2026 12 13 4 59 59 (2026 12))
+                   (2026 12 13 5 0 0 nil)
+                   (2024 12 25 5 0 0 (2024 25))
+                   (2024 12 26 5 0 0 nil)
+                   (2026 7 1 12 0 0 nil)
+                   (2014 12 1 5 0 0 nil)))
+    (let ((time (advent-test--time year month day hour minute second t)))
+      (should (equal (advent--puzzle-on-date time "America/New_York") expected)))))
+
 ;;; 25-day years
 
 (ert-deftest default-aoc-year-day-25-day-year-december-in-range ()
