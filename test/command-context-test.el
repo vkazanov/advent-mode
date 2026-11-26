@@ -54,9 +54,20 @@
                    (should (equal default "2024/05"))
                    "2023/05"))
                 ((symbol-function 'dired) (lambda (dir) (setq opened dir))))
-        (advent-open-day)
+        (ert-with-message-capture messages
+          (advent-open-day)
+          (should (string-empty-p messages)))
         (should (equal (directory-file-name opened)
                        (expand-file-name "y2023/d05" advent-root-dir)))))))
+
+(ert-deftest advent-open-day-missing-directory-names-puzzle-and-path ()
+  (ert-with-temp-directory advent-root-dir
+    (let ((advent-open-day-format "%d/%02d"))
+      (should (equal (error-message-string
+                      (should-error (advent-open-day 2024 5) :type 'user-error))
+                     (format (concat "2024/05 — Directory does not exist at %s. "
+                                     "Use M-x advent-create-day to create it")
+                             (expand-file-name "year2024/day05" advent-root-dir)))))))
 
 (ert-deftest advent-fetch-input-outside-day-errors-before-network ()
   "Outside a day directory, fetching the input fails without any request."
@@ -95,12 +106,17 @@
 (ert-deftest advent-browse-problem-page-outside-day-prompts ()
   "Browsing works outside a day directory by prompting for year and day."
   (advent-test--outside-day
-   (let (opened)
-     (cl-letf (((symbol-function 'advent--prompt-year-day)
-                (lambda (_time) (list 2024 5)))
+   (let ((years-and-days '(2024 5)) prompts opened)
+     (cl-letf (((symbol-function 'read-number)
+                (lambda (prompt &rest _)
+                  (push prompt prompts)
+                  (pop years-and-days)))
                ((symbol-function 'eww-browse-url)
                 (lambda (url &rest _) (setq opened url))))
-       (advent-browse-problem-page)
+       (ert-with-message-capture messages
+         (advent-browse-problem-page)
+         (should (string-empty-p messages)))
+       (should (equal (nreverse prompts) '("Year: " "Day for 2024: ")))
        (should (equal opened "https://adventofcode.com/2024/day/5"))))))
 
 (ert-deftest advent-browse-problem-page-prefers-prefix-or-explicit-pair ()
@@ -121,7 +137,7 @@
   (declare (indent 1))
   `(cl-letf (((symbol-function 'advent--ensure-cookie-or-error) #'ignore)
              ((symbol-function 'advent--write-url-to-file)
-              (lambda (_url file) (setq ,dst-var file) file))
+              (lambda (_url file &rest _) (setq ,dst-var file) file))
              ((symbol-function 'find-file-other-window) #'ignore))
      ,@body))
 
@@ -132,19 +148,22 @@
     (advent-test--recording-fetch written
       (dolist (args '(nil (2024 5)))
         (let ((err (should-error (apply #'advent-fetch-input args) :type 'user-error)))
-          (should (string-match-p "advent-root-dir" (error-message-string err)))))
+          (should (string-suffix-p "Set advent-root-dir to your Advent of Code solutions directory"
+                                   (error-message-string err)))))
       (should-not written))))
 
 (ert-deftest advent-fetch-input-explicit-day-writes-under-root ()
   "With explicit year/day, the input is saved under `advent-root-dir'."
   (advent-test--outside-day
-   (let (written)
+   (let ((advent-input-file-name "puzzle.txt") written)
      (advent-test--recording-fetch written
        (cl-letf (((symbol-function 'advent--context-year-day)
                   (lambda () (ert-fail "Looked up context for an explicit pair"))))
-         (advent-fetch-input 2024 5)))
+         (ert-with-message-capture messages
+           (advent-fetch-input 2024 5)
+           (should (equal messages "Y2024/D05 — Downloaded puzzle.txt\n")))))
      (should (equal written
-                    (expand-file-name "year2024/day05/input.txt" root))))))
+                    (expand-file-name "year2024/day05/puzzle.txt" root))))))
 
 (ert-deftest advent-fetch-input-existing-input-opens-without-cookie-or-network ()
   "An input already on disk is opened without checking the cookie or downloading."
@@ -159,22 +178,75 @@
                 (lambda (&rest _) (error "network must not be called")))
                ((symbol-function 'find-file-other-window)
                 (lambda (file &rest _) (setq opened file))))
-       (advent-fetch-input 2024 5))
+       (ert-with-message-capture messages
+         (advent-fetch-input 2024 5)
+         (should (string-empty-p messages))))
      (should (equal opened input)))))
+
+(defun advent-test--input-response (&rest _)
+  "Return a successful response as if retrieved by url.el."
+  (let ((buffer (generate-new-buffer " *input*")))
+    (with-current-buffer buffer (insert "HTTP/1.1 200 OK\n\ninput"))
+    buffer))
 
 (ert-deftest advent-create-day-fetches-input-under-root ()
   "Creating a day and accepting the download saves the input under root."
-  (advent-test--outside-day
-   (let ((advent-new-files nil)
-         written)
-     (advent-test--recording-fetch written
-       (cl-letf (((symbol-function 'y-or-n-p)
-                  (lambda (prompt) (string-match-p "Download" prompt)))
-                 ((symbol-function 'dired) #'ignore))
-         (advent-create-day 2024 5)))
-     (should (file-directory-p (expand-file-name "year2024/day05/" root)))
-     (should (equal written
-                    (expand-file-name "year2024/day05/input.txt" root))))))
+  (ert-with-temp-directory root
+    (let ((advent-root-dir root)
+          (advent-new-files '("absent.el"))
+          (day-buffer (current-buffer))
+          prompts warning opened)
+      (with-temp-buffer
+        (setq-local advent-open-day-format "AoC %d/%02d")
+        (cl-letf (((symbol-function 'y-or-n-p)
+                   (lambda (prompt)
+                     (push prompt prompts)
+                     (string-match-p "Copy\\|Download" prompt)))
+                  ((symbol-function 'warn)
+                   (lambda (fmt &rest args) (setq warning (apply #'format fmt args))))
+                  ((symbol-function 'dired) (lambda (_) (set-buffer day-buffer)))
+                  ((symbol-function 'find-file-other-window) (lambda (file) (setq opened file)))
+                  ((symbol-function 'advent--cookie-ok-p) #'always)
+                  ((symbol-function 'url-retrieve-synchronously) #'advent-test--input-response))
+          (ert-with-message-capture messages
+            (save-current-buffer (advent-create-day 2024 5))
+            (should (equal messages (concat "AoC 2024/05 — Created solution directory\n"
+                                            "AoC 2024/05 — Downloaded input.txt\n"))))
+          (ert-with-message-capture messages
+            (advent-create-day 2024 5)
+            (should (string-empty-p messages)))))
+      (should (equal (nreverse prompts)
+                     '("AoC 2024/05 — Copy template files here? "
+                       "AoC 2024/05 — Open the problem page in EWW? "
+                       "AoC 2024/05 — Download and open the input file? "
+                       "AoC 2024/05 — Directory already exists. Open it? ")))
+      (should (equal warning (format "AoC 2024/05 — Template file not found: %s"
+                                     (expand-file-name "absent.el" root))))
+      (should (file-directory-p (expand-file-name "year2024/day05/" root)))
+      (should (equal opened (expand-file-name "year2024/day05/input.txt" root)))
+      (should (equal (with-temp-buffer (insert-file-contents opened) (buffer-string))
+                     "input")))))
+
+(ert-deftest advent-fetch-input-failed-write-has-no-confirmation ()
+  (ert-with-temp-directory advent-root-dir
+    (cl-letf (((symbol-function 'advent--cookie-ok-p) #'always)
+              ((symbol-function 'url-retrieve-synchronously) #'advent-test--input-response)
+              ((symbol-function 'write-region)
+               (lambda (&rest _) (signal 'file-error '("Disk full")))))
+      (ert-with-message-capture messages
+        (should (equal (should-error (advent-fetch-input 2024 5) :type 'file-error)
+                       '(file-error "Disk full")))
+        (should (string-empty-p messages))))))
+
+(ert-deftest advent-fetch-input-missing-cookie-names-puzzle-and-login ()
+  (ert-with-temp-directory advent-root-dir
+    (let ((advent-open-day-format "%d#%02d") prompt)
+      (cl-letf (((symbol-function 'url-cookie-retrieve) #'ignore)
+                ((symbol-function 'y-or-n-p) (lambda (p) (setq prompt p) nil)))
+        (let ((err (should-error (advent-fetch-input 2024 5) :type 'user-error)))
+          (should (string-prefix-p "2024#05 — AoC session cookie missing." prompt))
+          (should (equal (error-message-string err)
+                         "2024#05 — No AoC session cookie set; run M-x advent-login")))))))
 
 (provide 'command-context-test)
 ;;; command-context-test.el ends here

@@ -7,10 +7,15 @@
 
 (ert-deftest advent-today-outside-event-explains-prefix-before-root-check ()
   (let ((advent-root-dir nil)
-        (time (encode-time 0 0 12 1 7 2025 t)))
-    (cl-letf (((symbol-function 'current-time) (lambda () time)))
-      (should (string-match-p
-               "C-u M-x advent-today"
+        (advent-timezone "America/Los_Angeles")
+        (system-time-locale "C")
+        ;; December 1 in New York, still November 30 in Los Angeles.
+        (time (encode-time 0 59 7 1 12 2025 t)))
+    (cl-letf (((symbol-function 'current-time)
+               (lambda () (prog1 time (setq time (time-add time 60))))))
+      (should (equal
+               (concat "No Advent of Code puzzle opens on November 30. "
+                       "Use C-u M-x advent-today to choose a year and day")
                (error-message-string
                 (should-error (advent-today) :type 'user-error)))))))
 
@@ -45,7 +50,10 @@
                        (lambda (&rest _) (ert-fail "Unexpected input request")))
                       ((symbol-function 'advent--ensure-cookie-or-error)
                        (lambda () (ert-fail "Unexpected authentication"))))
-              (call-interactively #'advent-today)
+              (ert-with-message-capture messages
+                (call-interactively #'advent-today)
+                (should (string-match-p "Y2025/D01 — Created solution directory\n"
+                                        messages)))
               (should (eq page (window-buffer (selected-window))))
               (should (get-buffer-window (dired-find-buffer-nocreate dir)))
               (should (equal (with-temp-buffer (insert-file-contents solution)
@@ -80,7 +88,9 @@
                 ((symbol-function 'dired) (lambda (path) (setq opened path)))
                 ((symbol-function 'eww-browse-url)
                  (lambda (&rest _) (ert-fail "Unexpected browser visit"))))
-        (call-interactively #'advent-today)
+        (ert-with-message-capture messages
+          (call-interactively #'advent-today)
+          (should (string-empty-p messages)))
         (should (equal dir opened))))))
 
 (ert-deftest advent-today-keeps-directory-visible-on-browser-error ()

@@ -101,11 +101,16 @@ Absolute paths are copied as-is, relative paths are resolved from
   :group 'advent)
 
 (defcustom advent-open-day-format "Y%04d/D%02d"
-  "Open day completion format.  Receives (YEAR DAY)."
+  "Puzzle label used in day completion, command feedback, and prompts.
+The format string receives the year and day as integers."
   :type 'string
   :group 'advent)
 
 (defvar advent-submit-level-history nil)
+
+(defvar advent--login-label nil
+  "Puzzle label during a login requested by a puzzle command.
+Session providers are called without arguments.")
 
 (defcustom advent-session-provider #'advent-session-from-auth-source
   "Function used by `advent-login' to obtain the AoC session cookie.
@@ -129,16 +134,17 @@ See:
                     :require '(:secret)
                     :max 1))))
     (let ((secret (plist-get entry :secret)))
-      (message "Session cookie found in auth-source")
+      (message "%s" (advent--puzzle-text advent--login-label "Session cookie found in auth-source"))
       (or (and (functionp secret) (funcall secret))
           (and (stringp secret) secret)))))
 
 (defun advent-session-prompt ()
   "Prompt the user for an AoC session cookie string.
 Surrounding whitespace is removed.  Signal `user-error' if nothing is entered."
-  (let ((session (string-trim (read-passwd "Advent of Code session cookie: "))))
+  (let* ((prompt (advent--puzzle-text advent--login-label "Advent of Code session cookie: "))
+         (session (string-trim (read-passwd prompt))))
     (when (string-empty-p session)
-      (user-error "No session cookie entered"))
+      (user-error "%s" (advent--puzzle-text advent--login-label "No session cookie entered")))
     session))
 
 ;;;; Helper functions.
@@ -214,8 +220,13 @@ the previous YEAR and its last day."
                     advent-input-file-name))
 
 (defun advent--format-year-day (year day)
-  "Return display key for YEAR/DAY."
+  "Return the puzzle label for YEAR and DAY."
   (format advent-open-day-format year day))
+
+(defun advent--puzzle-text (label format-string &rest args)
+  "Format FORMAT-STRING with ARGS and prefix it with LABEL when non-nil."
+  (let ((text (apply #'format format-string args)))
+    (if label (concat label " - " text) text)))
 
 (defun advent--problem-url (year day)
   "YEAR/DAY problem url."
@@ -237,10 +248,12 @@ the previous YEAR and its last day."
   "Return expanded `advent-root-dir' as a directory name, or nil."
   (when advent-root-dir (advent--normalize-dir advent-root-dir)))
 
-(defun advent--root-or-error ()
-  "Return expanded `advent-root-dir', or signal `user-error' if unset."
+(defun advent--root-or-error (&optional year day)
+  "Return expanded `advent-root-dir' or signal an error for YEAR and DAY."
   (or (advent--root)
-      (user-error "Variable advent-root-dir is not set")))
+      (user-error "%s" (advent--puzzle-text
+                        (and year day (advent--format-year-day year day))
+                        "Set advent-root-dir to your Advent of Code solutions directory"))))
 
 (defun advent--current-buffer-dir ()
   "Return the path of the current buffer file, or `default-directory'."
@@ -316,12 +329,12 @@ decimal digits survive."
             (buffer-substring-no-properties (car bounds) (cdr bounds)))
            (t "")))))
 
-(defun advent--ensure-answer-or-error (answer)
+(defun advent--ensure-answer-or-error (answer label)
   "Return ANSWER without surrounding whitespace.
-Signal `user-error' if nothing is left."
+Signal `user-error' for puzzle LABEL if nothing is left."
   (let ((trimmed (string-trim (format "%s" answer))))
     (when (string-empty-p trimmed)
-      (user-error "No answer given"))
+      (user-error "%s" (advent--puzzle-text label "No answer given")))
     trimmed))
 
 (defun advent--existing-days (root)
@@ -354,13 +367,13 @@ Default tries `advent--default-aoc-year-day' with TIME."
 
 ;;;; Cookie management
 
-(defun advent--ensure-cookie-or-error ()
-  "Check if cookie is set.
-Suggest setting the cookie, error otherwise."
+(defun advent--ensure-cookie-or-error (label)
+  "Check the cookie for puzzle LABEL and offer to log in if it is missing."
   (unless (advent--cookie-ok-p)
-    (if (y-or-n-p "AoC session cookie missing.  Set it now? ")
-        (advent-login nil)
-      (user-error "No AoC session cookie set; run M-x advent-login"))))
+    (if (y-or-n-p (advent--puzzle-text label "AoC session cookie missing. Set it now? "))
+        (let ((advent--login-label label))
+          (advent-login))
+      (user-error "%s" (advent--puzzle-text label "No AoC session cookie set; run M-x advent-login")))))
 
 (defun advent--cookie-ok-p ()
   "Non-nil if a non-expired AoC `session' cookie exists."
@@ -396,11 +409,10 @@ An empty string counts as no cookie."
 Return non-nil if DIR was created."
   (unless (file-directory-p dir)
     (mkdir dir t)
-    (message "Created %s" dir)
     t))
 
-(defun advent--copy-templates (paths target root)
-  "Copy PATHS to TARGET dir.
+(defun advent--copy-templates (paths target root label)
+  "Copy PATHS to TARGET dir for puzzle LABEL.
 Relative PATHS are resolved relative to ROOT, absolute ones copied as
 is."
   (dolist (f paths)
@@ -408,7 +420,7 @@ is."
            (dst (file-name-concat target (file-name-nondirectory f))))
       (if (file-exists-p src)
           (copy-file src dst t)
-        (warn "Template file not found: %s" src)))))
+        (warn "%s" (advent--puzzle-text label "Template file not found: %s" src))))))
 
 (defun advent--http--status ()
   "Return numeric HTTP status for current buffer, or nil."
@@ -418,25 +430,26 @@ is."
         (when (looking-at "HTTP/[0-9.]+ \\([0-9][0-9][0-9]\\)")
           (string-to-number (match-string 1))))))
 
-(defun advent--http--body (require-nonempty)
-  "Return response body from current buffer or signal an error.
+(defun advent--http--body (label require-nonempty)
+  "Return response body from current buffer or signal an error for LABEL.
 REQUIRE-NONEMPTY - when t, error out if the body is empty."
   (let ((status (advent--http--status)))
     (unless status
-      (error "Malformed HTTP response (no status)"))
+      (error "%s" (advent--puzzle-text label "Malformed HTTP response (no status)")))
     (goto-char (point-min))
     (unless (re-search-forward "\r?\n\r?\n" nil t)
-      (error "Malformed HTTP response (no header/body separator)"))
+      (error "%s" (advent--puzzle-text label "Malformed HTTP response (no header/body separator)")))
     (let* ((body (buffer-substring-no-properties (point) (point-max)))
            (snippet (string-trim (substring body 0 (min 200 (length body))))))
       (when (>= status 400)
-        (error "HTTP %d%s" status (if (string-empty-p snippet) "" (format ": %s" snippet))))
+        (error "%s" (advent--puzzle-text label "HTTP %d%s" status
+                                         (if (string-empty-p snippet) "" (concat ": " snippet)))))
       (when (and require-nonempty (string-empty-p (string-trim body)))
-        (error "Empty HTTP response body"))
+        (error "%s" (advent--puzzle-text label "Empty HTTP response body")))
       body)))
 
-(defun advent--http-request (url &optional method data require-nonempty)
-  "Synchronously request URL and return response body as string.
+(defun advent--http-request (url label &optional method data require-nonempty)
+  "Synchronously request URL for puzzle LABEL and return its response body.
 METHOD is \"GET\"/\"POST\"; DATA is urlencoded string for POST.
 REQUIRE-NONEMPTY - when t, error out if the body is empty."
   (let* ((url-request-method (or method "GET"))
@@ -445,10 +458,11 @@ REQUIRE-NONEMPTY - when t, error out if the body is empty."
          (url-request-data data)
          ;; Do not use the INHIBIT-COOKIE param in the call below!
          (buf (url-retrieve-synchronously url t nil 30)))
-    (unless buf (error "Failed to %s %s" url-request-method url))
+    (unless buf
+      (error "%s" (advent--puzzle-text label "Failed to %s %s" url-request-method url)))
     (unwind-protect
         (with-current-buffer buf
-          (advent--http--body require-nonempty))
+          (advent--http--body label require-nonempty))
       (kill-buffer buf))))
 
 (defun advent--submit-article (html)
@@ -462,26 +476,26 @@ Return nil when libxml is unavailable or the article has no text."
       (unless (string-blank-p (string-join (dom-strings article)))
         article))))
 
-(defun advent--write-url-to-file (url file)
-  "Synchronously GET URL and write body to FILE.
+(defun advent--write-url-to-file (url file label)
+  "Synchronously GET URL for puzzle LABEL and write its body to FILE.
 Return FILE or signal error."
-  (let ((body (advent--http-request url "GET" nil t)))
+  (let ((body (advent--http-request url label "GET" nil t)))
     (advent--maybe-create-dir (file-name-directory file))
     (with-temp-file file (insert body))
     file))
 
-(defun advent--http-post (url data)
-  "Synchronously POST DATA (application/x-www-form-urlencoded) to URL.
+(defun advent--http-post (url data label)
+  "Synchronously POST form DATA to URL for puzzle LABEL.
 Returns response body as string."
-  (advent--http-request url "POST" data))
+  (advent--http-request url label "POST" data))
 
 (defun advent--prompt-year-day (time)
   "Prompt for AoC YEAR and DAY.
 Default values come from `advent--default-aoc-year-day' with TIME."
-  (pcase-let ((`(,year ,day) (advent--default-aoc-year-day time)))
+  (pcase-let* ((`(,default-year ,day) (advent--default-aoc-year-day time))
+               (year (read-number "Year: " default-year)))
     (advent--ensure-valid-year-day-or-error
-     (read-number "Year: " year)
-     (read-number "Day: "  day))))
+     year (read-number (format "Day for %s: " year) day))))
 
 ;;;; Commands
 
@@ -500,7 +514,8 @@ When called interactively with a prefix arg, always prompt for SESSION."
   (let ((session (or session
                      (advent--cookie-get)
                      (advent-session-prompt)
-                     (user-error "No session cookie available"))))
+                     (user-error "%s" (advent--puzzle-text advent--login-label
+                                                           "No session cookie available")))))
     ;; Run url.el's one-time setup first: it reads the cookie file and
     ;; would otherwise overwrite the cookie stored below.
     (url-do-setup)
@@ -508,7 +523,7 @@ When called interactively with a prefix arg, always prompt for SESSION."
                       "Fri, 25 Dec 2031 00:00:00 GMT"
                       ".adventofcode.com" "/" t))
   (advent--refresh-mode-lines)
-  (message "AoC session cookie stored."))
+  (message "%s" (advent--puzzle-text advent--login-label "AoC session cookie stored.")))
 
 ;;;###autoload
 (defun advent-login-reset ()
@@ -541,13 +556,14 @@ Supply YEAR and DAY together.  If both are nil, infer the puzzle from
 the current buffer.  Downloading requires an AoC session cookie."
   (interactive)
   (pcase-let* ((explicit (advent--explicit-year-day year day))
-               (root (advent--root-or-error))
+               (root (advent--root-or-error year day))
                (`(,year ,day) (or explicit (advent--ensure-context-or-error)))
                (dst (advent--input-path year day root)))
     (unless (file-exists-p dst)
-      (advent--ensure-cookie-or-error)
-      (advent--write-url-to-file (advent--input-url year day) dst)
-      (message "%s saved." dst))
+      (let ((label (advent--format-year-day year day)))
+        (advent--ensure-cookie-or-error label)
+        (advent--write-url-to-file (advent--input-url year day) dst label)
+        (message "%s" (advent--puzzle-text label "Downloaded %s" advent-input-file-name))))
     (find-file-other-window dst)))
 
 ;;;###autoload
@@ -558,39 +574,41 @@ the current buffer."
   (interactive
    ;; Check context before prompting, so a missing day fails immediately.
    (pcase-let* ((`(,year ,day) (advent--ensure-context-or-error))
+                (label (advent--format-year-day year day))
                 (def (advent--default-answer))
                 (ans (advent--ensure-answer-or-error
-                      (read-string (format "Answer for %d day %02d: " year day)
-                                   def nil)))
-                (lvl (completing-read "Level: " '("1" "2") nil t nil
+                      (read-string (advent--puzzle-text label "Answer: ") def) label))
+                (lvl (completing-read (advent--puzzle-text label "Level: ") '("1" "2") nil t nil
                                       'advent-submit-level-history "1")))
      (list ans lvl year day)))
-  (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
-    (let ((answer (advent--ensure-answer-or-error answer)))
-      (advent--ensure-cookie-or-error)
-      (let* ((url (advent--answer-url year day))
-             (resp (advent--http-post
-                    url
-                    (format "level=%s&answer=%s"
-                            (url-hexify-string (format "%s" level))
-                            (url-hexify-string answer)))))
-        (with-current-buffer (get-buffer-create "*AoC Submit*")
-          (special-mode)
-          (setq-local browse-url-browser-function #'eww-browse-url)
-          ;; Show only the verdict; fall back to the raw response.
-          (let ((inhibit-read-only t)
-                (article (advent--submit-article resp)))
-            (erase-buffer)
-            (if article
-                (shr-insert-document
-                 (dom-node 'html nil
-                           (dom-node 'head nil (dom-node 'base `((href . ,url))))
-                           (dom-node 'body nil article)))
-              (insert resp)))
-          (goto-char (point-min))
-          (display-buffer (current-buffer)))
-        (message "Submitted answer for %d day %d (level %s)" year day level)
-        resp))))
+  (pcase-let* ((`(,year ,day) (advent--ensure-context-or-error year day))
+               (label (advent--format-year-day year day))
+               (answer (advent--ensure-answer-or-error answer label)))
+    (advent--ensure-cookie-or-error label)
+    (let* ((url (advent--answer-url year day))
+           (resp (advent--http-post
+                  url
+                  (format "level=%s&answer=%s"
+                          (url-hexify-string (format "%s" level))
+                          (url-hexify-string answer))
+                  label)))
+      (with-current-buffer (get-buffer-create "*AoC Submit*")
+        (special-mode)
+        (setq-local browse-url-browser-function #'eww-browse-url)
+        ;; Show only the verdict; fall back to the raw response.
+        (let ((inhibit-read-only t)
+              (article (advent--submit-article resp)))
+          (erase-buffer)
+          (if article
+              (shr-insert-document
+               (dom-node 'html nil
+                         (dom-node 'head nil (dom-node 'base `((href . ,url))))
+                         (dom-node 'body nil article)))
+            (insert resp)))
+        (goto-char (point-min))
+        (display-buffer (current-buffer)))
+      (message "%s" (advent--puzzle-text label "Submitted answer for level %s" level))
+      resp)))
 
 ;;;###autoload
 (defun advent-open-day (&optional year day)
@@ -599,11 +617,14 @@ Supply YEAR and DAY together.  If both are nil, prompt from the
 existing days under that root."
   (interactive)
   (pcase-let* ((explicit (advent--explicit-year-day year day))
-               (root (advent--root-or-error))
+               (root (advent--root-or-error year day))
                (`(,year ,day) (or explicit (advent--read-existing-year-day root)))
                (dir (advent--problem-dir year day root)))
     (unless (file-directory-p dir)
-      (user-error "Day dir does not exist: %s (use M-x advent-create-day)" dir))
+      (user-error "%s" (advent--puzzle-text
+                        (advent--format-year-day year day)
+                        "Directory does not exist at %s. Use M-x advent-create-day to create it"
+                        dir)))
     (dired dir)))
 
 ;;;###autoload
@@ -617,20 +638,24 @@ it, then offer to open the problem page and download/open the input
 file."
   (interactive (advent--prompt-year-day (current-time)))
   (pcase-let* ((`(,year ,day) (advent--ensure-valid-year-day-or-error year day))
-               (root (advent--root-or-error))
+               (root (advent--root-or-error year day))
+               (label-format advent-open-day-format)
+               (label (advent--format-year-day year day))
                (dir (advent--problem-dir year day root)))
-    (if (file-directory-p dir)
-        (when (y-or-n-p "Day dir already exists.  Open it? ")
+    (if (not (advent--maybe-create-dir dir))
+        (when (y-or-n-p (advent--puzzle-text label "Directory already exists. Open it? "))
           (advent-open-day year day))
-      (advent--maybe-create-dir dir)
+      (message "%s" (advent--puzzle-text label "Created solution directory"))
       (when (and advent-new-files
-                 (y-or-n-p "Dir created.  Copy template files into it? "))
-        (advent--copy-templates advent-new-files dir root))
+                 (y-or-n-p (advent--puzzle-text label "Copy template files here? ")))
+        (advent--copy-templates advent-new-files dir root label))
       (dired dir)
-      (when (y-or-n-p "Open the problem page in EWW? ")
+      (when (y-or-n-p (advent--puzzle-text label "Open the problem page in EWW? "))
         (advent-browse-problem-page year day))
-      (when (y-or-n-p "Download and open the input file? ")
-        (advent-fetch-input year day)))))
+      (when (y-or-n-p (advent--puzzle-text label "Download and open the input file? "))
+        ;; Dired or EWW may have its own buffer-local puzzle format.
+        (let ((advent-open-day-format label-format))
+          (advent-fetch-input year day))))))
 
 ;;;###autoload
 (defun advent-today (&optional year day)
@@ -644,15 +669,20 @@ alongside Dired.
 
 For an existing day, open its directory in Dired."
   (interactive (when current-prefix-arg (advent--prompt-year-day (current-time))))
-  (pcase-let* ((`(,year ,day)
+  (pcase-let* ((now (current-time))
+               (`(,year ,day)
                 (or (advent--explicit-year-day year day)
-                    (advent--puzzle-on-date (current-time) advent-timezone)
-                    (user-error "No Advent of Code puzzle today.  Use C-u M-x advent-today to choose a puzzle")))
-               (root (advent--root-or-error))
+                    (advent--puzzle-on-date now advent-timezone)
+                    (user-error (concat "No Advent of Code puzzle opens on %s. "
+                                        "Use C-u M-x advent-today to choose a year and day")
+                                (format-time-string "%B %-d" now advent-timezone))))
+               (root (advent--root-or-error year day))
                (dir (advent--problem-dir year day root))
                (created (advent--maybe-create-dir dir)))
     (when created
-      (advent--copy-templates advent-new-files dir root))
+      (let ((label (advent--format-year-day year day)))
+        (message "%s" (advent--puzzle-text label "Created solution directory"))
+        (advent--copy-templates advent-new-files dir root label)))
     (dired dir)
     (when created
       ;; Leave Dired visible while EWW takes over the other window.
