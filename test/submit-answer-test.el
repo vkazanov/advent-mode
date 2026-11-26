@@ -58,5 +58,22 @@
       (should (string-match-p "05" prompt))
       (should (equal url (advent--answer-url 2024 5))))))
 
+(ert-deftest advent-submit-response-buffer-is-read-only ()
+  "The response buffer is read-only and is refreshed by each submission."
+  (advent-test--in-day 2024 5
+    (let ((responses '("first" "second")))
+      (unwind-protect
+          (cl-letf (((symbol-function 'advent--ensure-cookie-or-error) #'ignore)
+                    ((symbol-function 'advent--http-post)
+                     (lambda (&rest _) (pop responses)))
+                    ((symbol-function 'display-buffer) #'ignore))
+            (advent-submit-answer "42" "1" 2024 5)
+            (advent-submit-answer "43" "1" 2024 5)
+            (with-current-buffer "*AoC Submit*"
+              (should buffer-read-only)
+              (should (equal (buffer-string) "second"))))
+        (when (get-buffer "*AoC Submit*")
+          (kill-buffer "*AoC Submit*"))))))
+
 (provide 'submit-answer-test)
 ;;; submit-answer-test.el ends here
