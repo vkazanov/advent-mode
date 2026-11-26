@@ -34,10 +34,10 @@
                (advent-test--make-http-buffer
                 "HTTP/1.1 404 Not Found\r\n\r\nnope" 404))))
     (let ((advent-open-day-format "[%d.%02d]"))
-      (cl-letf (((symbol-function 'advent--cookie-ok-p) #'always))
+      (cl-letf (((symbol-function 'advent--ensure-cookie-or-error) #'ignore))
         (should (equal (error-message-string
                         (should-error (advent-submit-answer "42" 2 2024 5)))
-                       "[2024.05] — HTTP 404: nope"))))))
+                       "[2024.05] - HTTP 404: nope"))))))
 
 (ert-deftest http-request-errors-on-malformed-no-separator ()
   (cl-letf (((symbol-function 'url-retrieve-synchronously)
@@ -46,7 +46,7 @@
                 "HTTP/1.1 200 OK\r\nX: y\r\n<body-no-separator>" 200))))
     (should (equal (error-message-string
                     (should-error (advent--http-request "http://x/" "2024/05" "GET")))
-                   "2024/05 — Malformed HTTP response (no header/body separator)"))))
+                   "2024/05 - Malformed HTTP response (no header/body separator)"))))
 
 (ert-deftest http-request-errors-on-missing-status ()
   (cl-letf (((symbol-function 'url-retrieve-synchronously)
@@ -55,15 +55,15 @@
                 "GARBAGE\r\n\r\nhi"))))
     (should (equal (error-message-string
                     (should-error (advent--http-request "http://x/" "2024/05" "GET")))
-                   "2024/05 — Malformed HTTP response (no status)"))))
+                   "2024/05 - Malformed HTTP response (no status)"))))
 
 (ert-deftest http-fetch-without-response-names-target ()
   (ert-with-temp-directory advent-root-dir
     (cl-letf (((symbol-function 'url-retrieve-synchronously) #'ignore)
-              ((symbol-function 'advent--cookie-ok-p) #'always))
+              ((symbol-function 'advent--ensure-cookie-or-error) #'ignore))
       (should (equal (error-message-string
                       (should-error (advent-fetch-input 2024 5)))
-                     "Y2024/D05 — Failed to GET https://adventofcode.com/2024/day/5/input")))))
+                     "Y2024/D05 - Failed to GET https://adventofcode.com/2024/day/5/input")))))
 
 (ert-deftest write-url-to-file-requires-nonempty-body ()
   (let ((tmp (make-temp-file "advent-" t))
@@ -75,7 +75,7 @@
                   "HTTP/1.1 200 OK\r\n\r\n   \n" 200))))
       (should (equal (error-message-string
                       (should-error (advent--write-url-to-file "http://x/" dst "2024/05")))
-                     "2024/05 — Empty HTTP response body"))
+                     "2024/05 - Empty HTTP response body"))
       (should-not (file-exists-p dst)))))
 
 (ert-deftest write-url-to-file-writes-body ()

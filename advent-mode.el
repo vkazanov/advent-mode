@@ -372,6 +372,8 @@ Default tries `advent--default-aoc-year-day' with TIME."
 
 (defun advent--ensure-cookie-or-error (label)
   "Check the cookie for puzzle LABEL and offer to log in if it is missing."
+  ;; Commands can also run before `advent-mode' has been enabled.
+  (url-do-setup)
   (unless (advent--cookie-ok-p)
     (if (y-or-n-p (advent--puzzle-text label "AoC session cookie missing. Set it now? "))
         (let ((advent--login-label label))
@@ -762,6 +764,8 @@ Binds `advent-command-map' while `global-advent-mode' is on and
   :lighter (:eval (advent--mode-line))
   (if advent-mode
       (progn
+        ;; Load saved cookies before the first mode-line render.
+        (url-do-setup)
         (advent--refresh-mode-line-context)
         (add-hook 'pre-redisplay-functions #'advent--refresh-mode-line-context nil t))
     (remove-hook 'pre-redisplay-functions #'advent--refresh-mode-line-context t)

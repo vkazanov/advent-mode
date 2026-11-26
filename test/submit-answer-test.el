@@ -26,7 +26,7 @@
       (should (equal (error-message-string
                       (should-error (advent-submit-answer "   " "1" 2024 5)
                                     :type 'user-error))
-                     "Y2024/D05 — No answer given")))))
+                     "Y2024/D05 - No answer given")))))
 
 (ert-deftest advent-submit-trims-answer ()
   "Surrounding whitespace is removed before the answer is posted."
@@ -48,7 +48,7 @@
       (should (equal (error-message-string
                       (should-error (call-interactively #'advent-submit-answer)
                                     :type 'user-error))
-                     "Y2024/D05 — No answer given")))))
+                     "Y2024/D05 - No answer given")))))
 
 (ert-deftest advent-submit-interactive-prompt-names-target ()
   "Resolve the puzzle once for both the answer prompt and the submission."
@@ -65,9 +65,9 @@
               ((symbol-function 'display-buffer) #'ignore))
       (ert-with-message-capture messages
         (call-interactively #'advent-submit-answer)
-        (should (equal messages "2024%/05 — Submitted answer for level 1\n"))))
+        (should (equal messages "2024%/05 - Submitted answer for level 1\n"))))
     (should (= lookups 1))
-    (should (equal (nreverse prompts) '("2024%/05 — Answer: " "2024%/05 — Level: ")))
+    (should (equal (nreverse prompts) '("2024%/05 - Answer: " "2024%/05 - Level: ")))
     (should (equal url (advent--answer-url 2024 5)))))
 
 (ert-deftest advent-submit-response-buffer-is-read-only ()

@@ -37,6 +37,7 @@ No cookie file is read or written."
 (ert-deftest advent-login-from-submission-keeps-label-in-cookie-prompt ()
   "The built-in provider can identify the puzzle that requested login."
   (let ((advent-session-provider #'advent-session-prompt)
+        (url-setup-done t)
         (advent-open-day-format "%d/%02d")
         prompt)
     (cl-letf (((symbol-function 'url-cookie-retrieve) #'ignore)
@@ -44,8 +45,8 @@ No cookie file is read or written."
               ((symbol-function 'read-passwd) (lambda (p) (setq prompt p) "")))
       (should (equal (error-message-string
                       (should-error (advent-submit-answer "42" 2 2024 5) :type 'user-error))
-                     "2024/05 — No session cookie entered"))
-      (should (equal prompt "2024/05 — Advent of Code session cookie: ")))))
+                     "2024/05 - No session cookie entered"))
+      (should (equal prompt "2024/05 - Advent of Code session cookie: ")))))
 
 (ert-deftest advent-cookie-get-treats-empty-provider-as-missing ()
   "An empty string from the session provider counts as no cookie."

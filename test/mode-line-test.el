@@ -17,6 +17,7 @@
 (ert-deftest advent-mode-line-refreshes-on-context-changes ()
   (ert-with-temp-directory root
     (let* ((advent-root-dir root)
+           (url-setup-done t)
            (day-dir (expand-file-name "year2024/day05/" root))
            (next-dir (expand-file-name "../day06/" day-dir))
            (unknown " AoC[Yxxxx/Dxx ✗]")
@@ -69,7 +70,8 @@
 
 (ert-deftest advent-mode-line-disable-clears-context-and-hook ()
   (with-temp-buffer
-    (let ((lookups 0))
+    (let ((url-setup-done t)
+          (lookups 0))
       (cl-letf (((symbol-function 'advent--context-year-day)
                  (lambda () (cl-incf lookups) '(2024 5))))
         (advent-mode 1)

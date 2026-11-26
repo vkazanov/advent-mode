@@ -65,7 +65,7 @@
     (let ((advent-open-day-format "%d/%02d"))
       (should (equal (error-message-string
                       (should-error (advent-open-day 2024 5) :type 'user-error))
-                     (format (concat "2024/05 — Directory does not exist at %s. "
+                     (format (concat "2024/05 - Directory does not exist at %s. "
                                      "Use M-x advent-create-day to create it")
                              (expand-file-name "year2024/day05" advent-root-dir)))))))
 
@@ -161,7 +161,7 @@
                   (lambda () (ert-fail "Looked up context for an explicit pair"))))
          (ert-with-message-capture messages
            (advent-fetch-input 2024 5)
-           (should (equal messages "Y2024/D05 — Downloaded puzzle.txt\n")))))
+           (should (equal messages "Y2024/D05 - Downloaded puzzle.txt\n")))))
      (should (equal written
                     (expand-file-name "year2024/day05/puzzle.txt" root))))))
 
@@ -206,21 +206,21 @@
                    (lambda (fmt &rest args) (setq warning (apply #'format fmt args))))
                   ((symbol-function 'dired) (lambda (_) (set-buffer day-buffer)))
                   ((symbol-function 'find-file-other-window) (lambda (file) (setq opened file)))
-                  ((symbol-function 'advent--cookie-ok-p) #'always)
+                  ((symbol-function 'advent--ensure-cookie-or-error) #'ignore)
                   ((symbol-function 'url-retrieve-synchronously) #'advent-test--input-response))
           (ert-with-message-capture messages
             (save-current-buffer (advent-create-day 2024 5))
-            (should (equal messages (concat "AoC 2024/05 — Created solution directory\n"
-                                            "AoC 2024/05 — Downloaded input.txt\n"))))
+            (should (equal messages (concat "AoC 2024/05 - Created solution directory\n"
+                                            "AoC 2024/05 - Downloaded input.txt\n"))))
           (ert-with-message-capture messages
             (advent-create-day 2024 5)
             (should (string-empty-p messages)))))
       (should (equal (nreverse prompts)
-                     '("AoC 2024/05 — Copy template files here? "
-                       "AoC 2024/05 — Open the problem page in EWW? "
-                       "AoC 2024/05 — Download and open the input file? "
-                       "AoC 2024/05 — Directory already exists. Open it? ")))
-      (should (equal warning (format "AoC 2024/05 — Template file not found: %s"
+                     '("AoC 2024/05 - Copy template files here? "
+                       "AoC 2024/05 - Open the problem page in EWW? "
+                       "AoC 2024/05 - Download and open the input file? "
+                       "AoC 2024/05 - Directory already exists. Open it? ")))
+      (should (equal warning (format "AoC 2024/05 - Template file not found: %s"
                                      (expand-file-name "absent.el" root))))
       (should (file-directory-p (expand-file-name "year2024/day05/" root)))
       (should (equal opened (expand-file-name "year2024/day05/input.txt" root)))
@@ -229,7 +229,7 @@
 
 (ert-deftest advent-fetch-input-failed-write-has-no-confirmation ()
   (ert-with-temp-directory advent-root-dir
-    (cl-letf (((symbol-function 'advent--cookie-ok-p) #'always)
+    (cl-letf (((symbol-function 'advent--ensure-cookie-or-error) #'ignore)
               ((symbol-function 'url-retrieve-synchronously) #'advent-test--input-response)
               ((symbol-function 'write-region)
                (lambda (&rest _) (signal 'file-error '("Disk full")))))
@@ -240,13 +240,13 @@
 
 (ert-deftest advent-fetch-input-missing-cookie-names-puzzle-and-login ()
   (ert-with-temp-directory advent-root-dir
-    (let ((advent-open-day-format "%d#%02d") prompt)
+    (let ((url-setup-done t) (advent-open-day-format "%d#%02d") prompt)
       (cl-letf (((symbol-function 'url-cookie-retrieve) #'ignore)
                 ((symbol-function 'y-or-n-p) (lambda (p) (setq prompt p) nil)))
         (let ((err (should-error (advent-fetch-input 2024 5) :type 'user-error)))
-          (should (string-prefix-p "2024#05 — AoC session cookie missing." prompt))
+          (should (string-prefix-p "2024#05 - AoC session cookie missing." prompt))
           (should (equal (error-message-string err)
-                         "2024#05 — No AoC session cookie set; run M-x advent-login")))))))
+                         "2024#05 - No AoC session cookie set; run M-x advent-login")))))))
 
 (provide 'command-context-test)
 ;;; command-context-test.el ends here

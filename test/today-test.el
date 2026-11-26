@@ -52,7 +52,7 @@
                        (lambda () (ert-fail "Unexpected authentication"))))
               (ert-with-message-capture messages
                 (call-interactively #'advent-today)
-                (should (string-match-p "Y2025/D01 — Created solution directory\n"
+                (should (string-match-p "Y2025/D01 - Created solution directory\n"
                                         messages)))
               (should (eq page (window-buffer (selected-window))))
               (should (get-buffer-window (dired-find-buffer-nocreate dir)))

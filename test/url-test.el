@@ -1,6 +1,7 @@
 ;;; url-test.el --- Tests for Advent URL builders  -*- lexical-binding: t; -*-
 
 (require 'advent-mode)
+(require 'cl-lib)
 (require 'ert)
 
 (ert-deftest url-builder-tests ()
@@ -41,6 +42,24 @@ none are left running."
                   url-cookie-secure-storage nil))
           (funcall fn))
       (delete-directory dir t))))
+
+(ert-deftest advent-mode-shows-saved-session-on-first-display ()
+  (advent-test--call-with-url-setup
+   '(("session" "saved" ".adventofcode.com"))
+   (lambda ()
+     (with-temp-buffer
+       (advent-mode 1)
+       (cl-letf (((symbol-function 'url-do-setup)
+                  (lambda () (ert-fail "URL setup during redisplay"))))
+         (should (string-suffix-p " ✓]" (advent--mode-line))))))))
+
+(ert-deftest advent-auth-check-uses-saved-session-before-mode-activation ()
+  (advent-test--call-with-url-setup
+   '(("session" "saved" ".adventofcode.com"))
+   (lambda ()
+     (cl-letf (((symbol-function 'y-or-n-p)
+                (lambda (_) (ert-fail "Asked to log in with a saved session"))))
+       (advent--ensure-cookie-or-error "Y2024/D05")))))
 
 (ert-deftest advent-login-survives-url-setup ()
   "A login must survive url.el's lazy setup."
