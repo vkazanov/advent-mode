@@ -63,5 +63,20 @@ none are left running."
                             (url-cookie-retrieve ".adventofcode.com" "/" t))
                     '("test-session"))))))
 
+(ert-deftest advent-login-reset-survives-url-setup ()
+  "A reset removes the session cookie from the cookie file, and only it."
+  (advent-test--call-with-url-setup
+   '(("session" "stale" ".adventofcode.com")
+     ("WMF-Uniq" "x" ".wikipedia.org"))
+   (lambda ()
+     (advent-login-reset)
+     ;; Reload url.el's state from the cookie file.
+     (setq url-cookie-storage nil
+           url-cookie-secure-storage nil
+           url-setup-done nil)
+     (url-do-setup)
+     (should-not (advent--cookie-ok-p))
+     (should (url-cookie-retrieve ".wikipedia.org" "/" t)))))
+
 (provide 'url-test)
 ;;; url-test.el ends here

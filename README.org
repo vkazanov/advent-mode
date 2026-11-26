@@ -63,6 +63,8 @@ configuration using =package-vc=:
     - =M-x advent-login= to store your AoC session cookie (see [[*Session cookie][Session cookie]]
       for where to get it and how to keep it in =.authinfo=)
 
+    - =M-x advent-login-reset= to remove the AoC session cookie (see [[*Session cookie][Session cookie]])
+
     - =M-x advent-open-day= to open an existing AoC day directory
 
     - =M-x advent-create-day= to create a new AoC day directory
@@ -112,6 +114,9 @@ Run =M-x advent-login=. It asks =advent-session-provider= for the cookie and pro
 you only if that finds nothing. With a prefix argument (=C-u M-x advent-login=) it
 always prompts. Commands that need the cookie offer to run =advent-login= when none is
 stored.
+
+=M-x advent-login-reset= forgets the stored cookie, for example after logging out of the
+site or when the cookie has expired.
 
 The default provider, =advent-session-from-auth-source=, looks the cookie up with
 auth-source. Put a line like this in =~/.authinfo.gpg= (or any file listed in

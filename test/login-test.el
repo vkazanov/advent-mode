@@ -9,6 +9,7 @@ No cookie file is read or written."
   (declare (indent 0))
   `(let ((url-cookie-storage nil)
          (url-cookie-secure-storage nil)
+         (url-cookie-file nil)
          (url-setup-done t))
      ,@body))
 
@@ -37,6 +38,26 @@ No cookie file is read or written."
   "An empty string from the session provider counts as no cookie."
   (let ((advent-session-provider (lambda () "")))
     (should-not (advent--cookie-get))))
+
+;;; Reset
+
+(ert-deftest advent-login-reset-removes-session-cookie ()
+  "After a reset no AoC session cookie is left."
+  (advent-test--isolated-cookies
+   (advent-login "abc123")
+   (advent-login-reset)
+   (should-not (advent--cookie-ok-p))
+   (should-not (url-cookie-retrieve ".adventofcode.com" "/" t))))
+
+(ert-deftest advent-login-reset-keeps-other-domains ()
+  "Cookies of other domains, even look-alike ones, survive a reset."
+  (advent-test--isolated-cookies
+   (advent-login "abc123")
+   (dolist (domain '(".example.com" ".notadventofcode.com"))
+     (url-cookie-store "id" "x" "Fri, 25 Dec 2031 00:00:00 GMT" domain "/" t))
+   (advent-login-reset)
+   (dolist (domain '(".example.com" ".notadventofcode.com"))
+     (should (url-cookie-retrieve domain "/" t)))))
 
 (provide 'login-test)
 ;;; login-test.el ends here

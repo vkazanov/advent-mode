@@ -501,6 +501,18 @@ When called interactively with a prefix arg, always prompt for SESSION."
   (message "AoC session cookie stored."))
 
 ;;;###autoload
+(defun advent-login-reset ()
+  "Forget the stored AoC session cookie.
+Remove all adventofcode.com cookies from url.el storage and save the
+cookie file.  Run `advent-login' to store a new one."
+  (interactive)
+  ;; As in `advent-login': setup would otherwise reload the cookie file.
+  (url-do-setup)
+  (url-cookie-delete-cookies (rx bos (? ".") "adventofcode.com" eos))
+  (advent--refresh-mode-lines)
+  (message "AoC session cookie removed."))
+
+;;;###autoload
 (defun advent-browse-problem-page (&optional year day)
   "Open the AoC problem page for YEAR and DAY in EWW.
 Try to infer year/day using the current directory or use AoC today.
