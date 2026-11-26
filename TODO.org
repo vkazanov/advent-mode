@@ -1,16 +1,16 @@
 * Publicity
 
-- [ ] Melpa
+- [X] Melpa
 
 * Document
 
+- [X] document the normal flow with global-advent-mode
+
+- [X] keymap
+
 - [ ] Configuration on all versions
 
-- [ ] document the normal flow with global-advent-mode
-
 - [ ] document the per-directory flow with dir-locals + advent-mode only
-
-- [ ] keymap
 
 * Logic
 
@@ -24,12 +24,12 @@
 
 - [X] customizable session cookie source: read-passwd or read-from-auth-source
 
-- [ ] optionally login when entering buffers when context recognized AoC
-
-- [ ] a funny reply to a submission whenever a puzzle was alread solved. Should I handle
+- [X] a funny reply to a submission whenever a puzzle was alread solved. Should I handle
   this as well?
 
-- [ ] cookie status caching? Might be harder to test
+- [X] cookie status caching? Might be harder to test
+
+- [ ] optionally login when entering buffers when context recognized AoC
 
 * Refactor
 
@@ -39,17 +39,17 @@
 
 * Testing
 
-- [-] more unit tests for command
+- [X] more unit tests for command
 
   - [X] open-day
 
   - [X] submit-answer
 
-  - [ ] open-input
+  - [X] open-input
 
-  - [ ] open-problem-page
+  - [X] open-problem-page
 
-- [ ] release procedure
+- [X] release procedure
 
 - [ ] github CI
 
