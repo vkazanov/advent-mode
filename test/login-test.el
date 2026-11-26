@@ -62,6 +62,36 @@ No cookie file is read or written."
    (should-not (advent--cookie-ok-p))
    (should-not (url-cookie-retrieve ".adventofcode.com" "/" t))))
 
+(ert-deftest advent-login-and-reset-update-all-lighters-once ()
+  (advent-test--isolated-cookies
+   (with-temp-buffer
+     (let ((first (current-buffer))
+           (lookups 0)
+           updates)
+       (cl-letf (((symbol-function 'advent--context-year-day)
+                  (lambda ()
+                    (cl-incf lookups)
+                    (if (eq (current-buffer) first) '(2024 5) '(2023 1)))))
+         (advent-mode 1)
+         (with-temp-buffer
+           (advent-mode 1)
+           (cl-flet ((check (glyph)
+                       (should (equal (with-current-buffer first (advent--mode-line))
+                                      (format " AoC[Y2024/D05 %s]" glyph)))
+                       (should (equal (advent--mode-line)
+                                      (format " AoC[Y2023/D01 %s]" glyph)))
+                       (should (= lookups 2))))
+             (cl-letf (((symbol-function 'force-mode-line-update)
+                        (lambda (&optional all) (push all updates))))
+               (check "✗")
+               (advent-login "abc123")
+               (should (equal updates '(t)))
+               (check "✓")
+               (setq updates nil)
+               (advent-login-reset)
+               (should (equal updates '(t)))
+               (check "✗")))))))))
+
 (ert-deftest advent-login-reset-keeps-other-domains ()
   "Cookies of other domains, even look-alike ones, survive a reset."
   (advent-test--isolated-cookies

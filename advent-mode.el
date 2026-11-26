@@ -91,7 +91,10 @@ Absolute paths are copied as-is, relative paths are resolved from
   :group 'advent)
 
 (defcustom advent-mode-line-format " AoC[Y%s/D%s %s]"
-  "Mode line format.  Receives (YEAR DAY COOKIE-STATUS)."
+  "Format string for the year, day and cookie status in the mode line.
+Use %s for the year and day to display \"xxxx\" and \"xx\" when unknown.
+For a known puzzle, %s displays a two-digit day.  Numeric directives
+such as %02d also work for known days."
   :type 'string
   :group 'advent)
 
@@ -395,13 +398,6 @@ An empty string counts as no cookie."
            (not (string-empty-p session))
            session))))
 
-(defun advent--refresh-mode-lines ()
-  "Update mode-lines of `advent-mode' buffers."
-  (dolist (b (buffer-list))
-    (with-current-buffer b
-      (when (bound-and-true-p advent-mode)
-        (force-mode-line-update t)))))
-
 ;;;; IO helpers
 
 (defun advent--maybe-create-dir (dir)
@@ -522,7 +518,7 @@ When called interactively with a prefix arg, always prompt for SESSION."
     (url-cookie-store "session" session
                       "Fri, 25 Dec 2031 00:00:00 GMT"
                       ".adventofcode.com" "/" t))
-  (advent--refresh-mode-lines)
+  (force-mode-line-update t)
   (message "%s" (advent--puzzle-text advent--login-label "AoC session cookie stored.")))
 
 ;;;###autoload
@@ -534,7 +530,7 @@ cookie file.  Run `advent-login' to store a new one."
   ;; As in `advent-login': setup would otherwise reload the cookie file.
   (url-do-setup)
   (url-cookie-delete-cookies (rx bos (? ".") "adventofcode.com" eos))
-  (advent--refresh-mode-lines)
+  (force-mode-line-update t)
   (message "AoC session cookie removed."))
 
 ;;;###autoload
@@ -691,17 +687,33 @@ For an existing day, open its directory in Dired."
 
 ;;;; Mode line and modes
 
-(defun advent--mode-line (&optional year day)
-  "Generate a mode line using using either YEAR/DAY or dir path.
-Relative path used for YEAR/DAY inference works using
-`advent--context-year-day'.  Provide a graceful fallback for the case
-when a problem directory is not found."
-  (let* ((ctx (advent--context-year-day))
-         (year (or year (car ctx) "xxxx"))
-         (day (or day (cadr ctx) "xx")))
-    (format advent-mode-line-format
-            year day
-            (advent--cookie-status-string))))
+(defvar-local advent--mode-line-cache nil
+  "Cons of the last lookup inputs and the inferred (YEAR DAY), possibly nil.")
+
+(defun advent--refresh-mode-line-context (&optional _window)
+  "Refresh the current buffer's cached puzzle when its lookup inputs change."
+  (let ((inputs (list buffer-file-name default-directory advent-root-dir
+                      advent-year-dir-format advent-day-dir-format
+                      (advent--current-year))))
+    (unless (equal inputs (car advent--mode-line-cache))
+      (setq advent--mode-line-cache (cons inputs (advent--context-year-day)))
+      (force-mode-line-update))))
+
+(defun advent--format-mode-line (format-string context cookie-status)
+  "Apply FORMAT-STRING to puzzle CONTEXT and COOKIE-STATUS.
+CONTEXT is (YEAR DAY) or nil for an unknown puzzle."
+  (if (null context)
+      (format format-string "xxxx" "xx" cookie-status)
+    (pcase-let ((`(,year ,day) context))
+      (condition-case nil
+          (format format-string year (format "%02d" day) cookie-status)
+        ;; A numeric day directive requires the original integer.
+        (error (format format-string year day cookie-status))))))
+
+(defun advent--mode-line ()
+  "Render the current buffer's lighter from its cached puzzle."
+  (advent--format-mode-line advent-mode-line-format (cdr advent--mode-line-cache)
+                           (advent--cookie-status-string)))
 
 (defvar-keymap advent-command-map
   :doc "Prefix keymap for Advent of Code commands that work anywhere."
@@ -748,7 +760,12 @@ Binds `advent-command-map' while `global-advent-mode' is on and
 (define-minor-mode advent-mode
   "Show AoC year/day and cookie status in the mode line."
   :lighter (:eval (advent--mode-line))
-  (force-mode-line-update))
+  (if advent-mode
+      (progn
+        (advent--refresh-mode-line-context)
+        (add-hook 'pre-redisplay-functions #'advent--refresh-mode-line-context nil t))
+    (remove-hook 'pre-redisplay-functions #'advent--refresh-mode-line-context t)
+    (kill-local-variable 'advent--mode-line-cache)))
 
 (defun advent--maybe-enable ()
   "Enable `advent-mode' in the current buffer if possible."
