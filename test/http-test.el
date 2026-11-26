@@ -4,6 +4,8 @@
 (require 'ert-x)
 (require 'advent-mode)
 (require 'cl-lib)
+(require 'lisp-mnt)
+(require 'url-http)
 
 (defun advent-test--make-http-buffer (text &optional status)
   (let ((b (generate-new-buffer " *advent-http-test*")))
@@ -19,6 +21,28 @@
                (advent-test--make-http-buffer
                 "HTTP/1.1 200 OK\r\nX: y\r\n\r\nhello\n" 200))))
     (should (equal (advent--http-request "http://x/" "2024/05" "GET") "hello\n"))))
+
+(ert-deftest http-request-identifies-advent-mode-on-get-and-post ()
+  (let ((expected (format (concat "User-Agent: advent-mode/%s (contact @vkazanov via "
+                                  "https://github.com/vkazanov/advent-mode/issues)\r\n")
+                          (lm-version (locate-library "advent-mode.el" t))))
+        (url-user-agent "caller/1.0")
+        (url-privacy-level nil)
+        requests)
+    (cl-letf (((symbol-function 'url-retrieve-synchronously)
+               (lambda (&rest _)
+                 (should (equal (url-http-user-agent-string) expected))
+                 (should-not (assoc-string "User-Agent" url-request-extra-headers t))
+                 (push (list url-request-method url-request-data
+                             (cdr (assoc-string "Content-Type" url-request-extra-headers t)))
+                       requests)
+                 (advent-test--make-http-buffer "HTTP/1.1 200 OK\r\n\r\nok" 200))))
+      (advent--http-request (advent--input-url 2024 5) "2024/05")
+      (advent--http-post (advent--answer-url 2024 5) "level=1&answer=42" "2024/05"))
+    (should (equal (nreverse requests)
+                   '(("GET" nil nil)
+                     ("POST" "level=1&answer=42" "application/x-www-form-urlencoded"))))
+    (should (equal url-user-agent "caller/1.0"))))
 
 (ert-deftest http-request-uses-status-line-if-var-missing ()
   (cl-letf (((symbol-function 'url-retrieve-synchronously)

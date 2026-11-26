@@ -466,11 +466,16 @@ REQUIRE-NONEMPTY - when t, error out if the body is empty."
         (error "%s" (advent--puzzle-text label "Empty HTTP response body")))
       body)))
 
+(defconst advent--user-agent
+  "advent-mode/0.2 (contact @vkazanov via https://github.com/vkazanov/advent-mode/issues)"
+  "HTTP User-Agent for Advent of Code requests.")
+
 (defun advent--http-request (url label &optional method data require-nonempty)
   "Synchronously request URL for puzzle LABEL and return its response body.
 METHOD is \"GET\"/\"POST\"; DATA is urlencoded string for POST.
 REQUIRE-NONEMPTY - when t, error out if the body is empty."
-  (let* ((url-request-method (or method "GET"))
+  (let* ((url-user-agent advent--user-agent)
+         (url-request-method (or method "GET"))
          (url-request-extra-headers
           (when data '(("Content-Type" . "application/x-www-form-urlencoded"))))
          (url-request-data data)
