@@ -75,5 +75,76 @@
         (when (get-buffer "*AoC Submit*")
           (kill-buffer "*AoC Submit*"))))))
 
+;;; Response rendering
+
+(defconst advent-test--answer-page
+  "<!DOCTYPE html>
+<html lang=\"en-us\">
+<head>
+<meta charset=\"utf-8\"/>
+<title>Day 5 - Advent of Code 2024</title>
+<script>window.addEventListener('click', function(){});</script>
+</head><!--
+Oh, hello!  Funny seeing you here.
+-->
+<body>
+<header><div><h1 class=\"title-global\"><a href=\"/\">Advent of Code</a></h1><nav><ul><li><a href=\"/2024/about\">[About]</a></li><li><a href=\"/2024/events\">[Events]</a></li></ul></nav></div></header>
+<main>
+<article><p>That&apos;s not the right answer; your answer is too high.  If you&apos;re stuck, make sure you&apos;re using the full input data.  Please wait one minute before trying again. <a href=\"/2024/day/5\">[Return to Day 5]</a></p></article>
+</main>
+</body>
+</html>"
+  "A wrong-answer page shaped like the one AoC returns.")
+
+(ert-deftest advent-submit-article-extracts-the-verdict ()
+  "Only the <article> of an answer page is kept."
+  (let ((text (string-join (dom-strings (advent--submit-article advent-test--answer-page)))))
+    (should (string-match-p "That's not the right answer" text))
+    (should (string-match-p "\\[Return to Day 5\\]" text))
+    (should-not (string-match-p "Advent of Code\\|\\[Events\\]" text))))
+
+(ert-deftest advent-submit-article-nil-without-usable-article ()
+  "Responses without an article with text yield nil."
+  (dolist (html '("plain text" "" "<html><body><article>  </article></body></html>"))
+    (should-not (advent--submit-article html))))
+
+(defun advent-test--submit-response (resp)
+  "Submit an answer with RESP as the server response; return the result.
+Rendering uses `shr-use-fonts' nil, as batch Emacs has no window to fill."
+  (cl-letf (((symbol-function 'advent--ensure-cookie-or-error) #'ignore)
+            ((symbol-function 'advent--http-post) (lambda (&rest _) resp))
+            ((symbol-function 'display-buffer) #'ignore))
+    (let ((shr-use-fonts nil))
+      (advent-submit-answer "42" "1" 2024 5))))
+
+(ert-deftest advent-submit-renders-only-the-article ()
+  "The response buffer shows the verdict with working links, not the page."
+  (advent-test--in-day 2024 5
+    (unwind-protect
+        (progn
+          (should (equal (advent-test--submit-response advent-test--answer-page)
+                         advent-test--answer-page))
+          (with-current-buffer "*AoC Submit*"
+            (let ((text (string-clean-whitespace (buffer-string))))
+              (should (string-match-p "That's not the right answer" text))
+              (should-not (string-match-p "<\\|Advent of Code\\|\\[Events\\]" text)))
+            (should buffer-read-only)
+            (should (eq browse-url-browser-function #'eww-browse-url))
+            (goto-char (point-min))
+            (search-forward "[Return")
+            (should (equal (get-text-property (point) 'shr-url)
+                           "https://adventofcode.com/2024/day/5"))))
+      (kill-buffer "*AoC Submit*"))))
+
+(ert-deftest advent-submit-shows-raw-response-without-article ()
+  "A response without an article is shown exactly as received."
+  (advent-test--in-day 2024 5
+    (unwind-protect
+        (progn
+          (advent-test--submit-response "Something unexpected")
+          (with-current-buffer "*AoC Submit*"
+            (should (equal (buffer-string) "Something unexpected"))))
+      (kill-buffer "*AoC Submit*"))))
+
 (provide 'submit-answer-test)
 ;;; submit-answer-test.el ends here

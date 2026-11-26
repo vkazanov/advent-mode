@@ -53,6 +53,8 @@
 (require 'url-cookie)
 (require 'eww)
 (require 'auth-source)
+(require 'dom)
+(require 'shr)
 (require 'pcase)
 (require 'seq)
 (require 'subr-x)
@@ -452,6 +454,17 @@ REQUIRE-NONEMPTY - when t, error out if the body is empty."
           (advent--http--body require-nonempty))
       (kill-buffer buf))))
 
+(defun advent--submit-article (html)
+  "Return the <article> DOM node of the AoC response HTML, or nil.
+Return nil when libxml is unavailable or the article has no text."
+  (when (libxml-available-p)
+    (when-let* ((dom (with-temp-buffer
+                       (insert html)
+                       (libxml-parse-html-region (point-min) (point-max))))
+                (article (car (dom-by-tag dom 'article))))
+      (unless (string-blank-p (string-join (dom-strings article)))
+        article))))
+
 (defun advent--write-url-to-file (url file)
   "Synchronously GET URL and write body to FILE.
 Return FILE or signal error."
@@ -560,16 +573,25 @@ Infer year/day using the current directory.  Return server response."
   (pcase-let ((`(,year ,day) (advent--ensure-context-or-error year day)))
     (let ((answer (advent--ensure-answer-or-error answer)))
       (advent--ensure-cookie-or-error)
-      (let ((resp (advent--http-post
-                   (advent--answer-url year day)
-                   (format "level=%s&answer=%s"
-                           (url-hexify-string (format "%s" level))
-                           (url-hexify-string answer)))))
+      (let* ((url (advent--answer-url year day))
+             (resp (advent--http-post
+                    url
+                    (format "level=%s&answer=%s"
+                            (url-hexify-string (format "%s" level))
+                            (url-hexify-string answer)))))
         (with-current-buffer (get-buffer-create "*AoC Submit*")
           (special-mode)
-          (let ((inhibit-read-only t))
+          (setq-local browse-url-browser-function #'eww-browse-url)
+          ;; Show only the verdict; fall back to the raw response.
+          (let ((inhibit-read-only t)
+                (article (advent--submit-article resp)))
             (erase-buffer)
-            (insert resp))
+            (if article
+                (shr-insert-document
+                 (dom-node 'html nil
+                           (dom-node 'head nil (dom-node 'base `((href . ,url))))
+                           (dom-node 'body nil article)))
+              (insert resp)))
           (goto-char (point-min))
           (display-buffer (current-buffer)))
         (message "Submitted answer for %d day %d (level %s)" year day level)
