@@ -11,7 +11,7 @@
 
 (source "gnu")
 
-(depends-on "emacs" "29.1")
+(depends-on "emacs" "30.1")
 
 (development
  (depends-on "package-lint"))

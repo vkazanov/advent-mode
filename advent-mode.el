@@ -6,7 +6,7 @@
 ;; Author: Vladimir Kazanov <@vkazanov>
 ;; Keywords: tools
 ;; Maintainer: Vladimir Kazanov <@vkazanov>
-;; Package-Requires: ((emacs "29.1"))
+;; Package-Requires: ((emacs "30.1"))
 ;; URL: https://github.com/vkazanov/advent-mode
 ;; Version: 0.1
 
