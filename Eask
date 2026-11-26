@@ -1,7 +1,7 @@
 ;; -*- mode: eask; lexical-binding: t -*-
 
 (package "advent-mode"
-         "0.1"
+         "0.2"
          "Advent of Code mode")
 
 (website-url "https://github.com/vkazanov/advent-mode")
