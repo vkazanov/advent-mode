@@ -632,16 +632,44 @@ when a problem directory is not found."
             (advent--cookie-status-string))))
 
 (defvar-keymap advent-command-map
-  :doc "Prefix keymap for Advent of Code commands."
-  ;; Global
+  :doc "Prefix keymap for Advent of Code commands that work anywhere."
   "l" #'advent-login
   "d" #'advent-open-day
   "c" #'advent-create-day
-  "p" #'advent-browse-problem-page
+  "p" #'advent-browse-problem-page)
 
-  ;; Local
+(defvar-keymap advent-local-command-map
+  :doc "Prefix keymap for Advent of Code commands in AoC buffers."
+  :parent advent-command-map
   "i" #'advent-fetch-input
   "s" #'advent-submit-answer)
+
+(defvar-keymap advent-global-mode-map
+  :doc "Keymap for `global-advent-mode'.  See `advent-keymap-prefix'.")
+
+(defvar-keymap advent-mode-map
+  :doc "Keymap for `advent-mode'.  See `advent-keymap-prefix'.")
+
+(defun advent--set-keymap-prefix (symbol prefix)
+  "Set SYMBOL to PREFIX and bind the command maps under it.
+The previous prefix, if any, is unbound first."
+  (when-let* ((old (and (boundp symbol) (symbol-value symbol))))
+    (keymap-unset advent-global-mode-map old t)
+    (keymap-unset advent-mode-map old t))
+  (when prefix
+    (keymap-set advent-global-mode-map prefix advent-command-map)
+    (keymap-set advent-mode-map prefix advent-local-command-map))
+  (set-default-toplevel-value symbol prefix))
+
+(defcustom advent-keymap-prefix nil
+  "Prefix key for Advent of Code commands, or nil for none.
+Binds `advent-command-map' while `global-advent-mode' is on and
+`advent-local-command-map' in `advent-mode' buffers.  Set it with
+`setopt' or Customize so that the bindings are updated."
+  :type '(choice (const :tag "None" nil) key)
+  :set #'advent--set-keymap-prefix
+  :initialize #'custom-initialize-reset
+  :group 'advent)
 
 ;;;###autoload
 (define-minor-mode advent-mode
@@ -657,6 +685,7 @@ when a problem directory is not found."
 ;;;###autoload
 (define-globalized-minor-mode global-advent-mode
   advent-mode advent--maybe-enable
+  :keymap advent-global-mode-map
   :group 'advent)
 
 (provide 'advent-mode)

@@ -44,13 +44,13 @@ configuration using =package-vc=:
   ;; OPTIONAL: Copy these into each new day directory (absolute or
   ;; relative to advent-root-dir)
   (advent-new-files '("solution.py" "aoc.py"))
+  ;; OPTIONAL: prefix key for all Advent Mode commands
+  (advent-keymap-prefix "C-c a")
   :config
   ;; Enable advent-mode when possible in files under advent-root-dir.
   ;; Otherwise, advent-mode can be enabled locally using
   ;; .dir-locals.el.
-  (global-advent-mode 1)
-  ;; Bind the commands globally
-  (keymap-global-set "C-c a" advent-command-map))
+  (global-advent-mode 1))
 #+end_src
 
 
@@ -78,9 +78,13 @@ configuration using =package-vc=:
 
     - =M-x advent-submit-answer= to submit an answer (prompts for answer and level)
 
-- Key bindings: Advent Mode binds no keys but provides the prefix keymap
-  =advent-command-map=. The configuration above binds it to =C-c a=; use any prefix you
-  like.
+- Key bindings: Advent Mode binds no keys until you set =advent-keymap-prefix= (=C-c a=
+  in the configuration above; use any prefix you like). Under that prefix, the commands
+  that work anywhere are available while =global-advent-mode= is on, and
+  =advent-fetch-input= and =advent-submit-answer= are added in buffers under
+  =advent-root-dir=. To bind the keys yourself instead, the prefix maps are
+  =advent-command-map= (commands that work anywhere) and =advent-local-command-map= (all
+  commands).
 
 Notes:
 
