@@ -54,7 +54,7 @@
   "Resolve the puzzle once for both the answer prompt and the submission."
   (let ((lookups 0) (advent-open-day-format "%d%%/%02d") prompts url)
     (cl-letf (((symbol-function 'advent--context-year-day)
-               (lambda () (cl-incf lookups) '(2024 5)))
+               (lambda (&rest _) (cl-incf lookups) '(2024 5)))
               ((symbol-function 'read-string)
                (lambda (p &rest _) (push p prompts) "42"))
               ((symbol-function 'completing-read)

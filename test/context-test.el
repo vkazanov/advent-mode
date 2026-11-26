@@ -29,7 +29,7 @@
     (let ((default-directory (file-name-as-directory daydir))
           (buffer-file-name nil))
       (should (equal (advent--relative-dir daydir) "year2026/day01/"))
-      (should (equal (advent--context-year-day) '(2026 1))))))
+      (should (equal (advent--context-year-day '(2026 3)) '(2026 1))))))
 
 (ert-deftest advent-context-year-day-in-deeper-subdir ()
   (let* ((root (make-temp-file "aoc-root-" t))
@@ -39,7 +39,7 @@
     (let ((default-directory (file-name-as-directory deep))
           (buffer-file-name nil))
       (should (equal (advent--relative-dir deep) "year2026/day01/src/"))
-      (should (equal (advent--context-year-day) '(2026 1))))))
+      (should (equal (advent--context-year-day '(2026 3)) '(2026 1))))))
 
 (ert-deftest advent-context-year-day-prefers-buffer-file-name ()
   (let* ((root (make-temp-file "aoc-root-" t))
@@ -52,7 +52,7 @@
     (let ((default-directory "/tmp/")      ; intentionally unrelated
           (buffer-file-name file))
       (should (equal (advent--relative-dir daydir) "year2026/day02/"))
-      (should (equal (advent--context-year-day) '(2026 2))))))
+      (should (equal (advent--context-year-day '(2026 3)) '(2026 2))))))
 
 (ert-deftest advent-root-trailing-slash-does-not-matter ()
   (let* ((root (make-temp-file "aoc-root-" t))
@@ -62,12 +62,12 @@
     (let ((advent-root-dir root)
           (default-directory (file-name-as-directory daydir))
           (buffer-file-name nil))
-      (should (equal (advent--context-year-day) '(2026 3))))
+      (should (equal (advent--context-year-day '(2026 3)) '(2026 3))))
     ;; With trailing slash
     (let ((advent-root-dir (file-name-as-directory root))
           (default-directory (file-name-as-directory daydir))
           (buffer-file-name nil))
-      (should (equal (advent--context-year-day) '(2026 3))))))
+      (should (equal (advent--context-year-day '(2026 3)) '(2026 3))))))
 
 
 (provide 'context-test)

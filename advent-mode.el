@@ -99,7 +99,7 @@ such as %02d also work for known days."
   :group 'advent)
 
 (defcustom advent-timezone "America/New_York"
-  "Timezone used when computing AoC default year/day."
+  "Timezone for puzzle prompts and the local date used by `advent-today'."
   :type 'string
   :group 'advent)
 
@@ -152,16 +152,25 @@ Surrounding whitespace is removed.  Signal `user-error' if nothing is entered."
 
 ;;;; Helper functions.
 
-(defun advent--default-aoc-year-day (time)
-  "Return (YEAR DAY) default AoC puzzle for TIME.
-Use `advent-timezone'.  If TIME is in December (AoC timezone) then use
-that YEAR and DAY=min(day-of-month, `advent--max-day').  Otherwise use
-the previous YEAR and its last day."
+(defun advent--calendar-year-day (time timezone)
+  "Return the most recent puzzle date as of TIME in TIMEZONE.
+Outside December, use the previous season's last day."
   (pcase-let ((`(,_sec ,_min ,_hour ,dom ,mon ,year ,_dow ,_dst ,_tz)
-               (decode-time (or time (current-time)) advent-timezone)))
+               (decode-time time timezone)))
     (if (= mon 12)
         (list year (min dom (advent--max-day year)))
       (list (1- year) (advent--max-day (1- year))))))
+
+(defun advent--latest-release (time)
+  "Return the inclusive (YEAR DAY) release bound at TIME, in UTC-5."
+  (advent--calendar-year-day time (* -5 60 60)))
+
+(defun advent--default-aoc-year-day (time &optional latest)
+  "Return the default puzzle for TIME in `advent-timezone'.
+Cap the default at LATEST, the release bound at TIME."
+  (let ((local (advent--calendar-year-day time advent-timezone))
+        (latest (or latest (advent--latest-release time))))
+    (if (value< latest local) latest local)))
 
 (defconst advent--first-year 2015
   "First year of Advent of Code.")
@@ -173,38 +182,45 @@ the previous YEAR and its last day."
   "Return the maximum puzzle day for YEAR."
   (if (>= year advent--first-12-day-year) 12 25))
 
+(defun advent--scheduled-year-day-p (year day)
+  "Return non-nil when YEAR and DAY fit the AoC event calendar."
+  (and (integerp year)
+       (integerp day)
+       (>= year advent--first-year)
+       (<= 1 day (advent--max-day year))))
+
 (defun advent--puzzle-on-date (time timezone)
   "Return (YEAR DAY) if a puzzle opens on the date of TIME in TIMEZONE."
   (let* ((date (decode-time time timezone))
          (year (decoded-time-year date))
          (day (decoded-time-day date)))
-    (when (and (>= year advent--first-year)
-               (= (decoded-time-month date) 12)
-               (<= day (advent--max-day year)))
+    (when (and (= (decoded-time-month date) 12)
+               (advent--scheduled-year-day-p year day))
       (list year day))))
 
-(defun advent--current-year ()
-  "Return the current calendar year."
-  (decoded-time-year (decode-time nil advent-timezone)))
+(defun advent--valid-year-day-p (year day latest)
+  "Return non-nil when YEAR and DAY identify a puzzle released by LATEST."
+  (and (advent--scheduled-year-day-p year day)
+       (not (value< latest (list year day)))))
 
-(defun advent--valid-year-day-p (year day)
-  "Return non-nil when YEAR/DAY is a valid AoC problem coordinate."
-  (and (integerp year)
-       (integerp day)
-       (>= year advent--first-year)
-       (<= year (advent--current-year))
-       (>= day 1)
-       (<= day (advent--max-day year))))
+(defun advent--released-year-day (year day latest explain-locked)
+  "Return (YEAR DAY) when released by LATEST, otherwise nil.
+If EXPLAIN-LOCKED is non-nil, signal a user error for a scheduled
+puzzle that has yet to unlock."
+  (cond ((advent--valid-year-day-p year day latest) (list year day))
+        ((and explain-locked (advent--scheduled-year-day-p year day))
+         (user-error "%s opens on %04d-12-%02d at 05:00 UTC"
+                     (advent--format-year-day year day) year day))))
 
-(defun advent--ensure-valid-year-day-or-error (year day)
-  "Return (YEAR DAY) when valid, otherwise signal `user-error'."
+(defun advent--ensure-valid-year-day-or-error (year day &optional latest)
+  "Return (YEAR DAY) when released by LATEST, otherwise signal `user-error'.
+LATEST defaults to the current release bound."
   (unless (and year day)
     (user-error "Supply both YEAR and DAY"))
-  (unless (advent--valid-year-day-p year day)
-    (user-error "Invalid AoC year/day: year=%S day=%S (year %d..%d, day 1..%s)"
-                year day advent--first-year (advent--current-year)
-                (if (integerp year) (advent--max-day year) "12 or 25")))
-  (list year day))
+  (or (advent--released-year-day year day (or latest (advent--latest-release (current-time))) t)
+      (user-error "Invalid AoC year/day: year=%S day=%S (year >= %d, day 1..%s)"
+                  year day advent--first-year
+                  (if (integerp year) (advent--max-day year) "12 or 25"))))
 
 (defun advent--explicit-year-day (year day)
   "Return nil if YEAR and DAY are both nil, otherwise validate the pair."
@@ -273,15 +289,15 @@ the previous YEAR and its last day."
       (when (file-in-directory-p abs root)
         (file-name-as-directory (file-relative-name abs root))))))
 
-(defun advent--infer-year-day-from-path (path)
-  "Infer (YEAR DAY) from PATH using configured dir formats.
-PATH is expected to be relative to `advent-root-dir'."
+(defun advent--infer-year-day-from-path (path latest &optional explain-locked)
+  "Infer a puzzle released by LATEST from PATH using configured dir formats.
+PATH is relative to `advent-root-dir'.  EXPLAIN-LOCKED reports the
+unlock time of a future puzzle."
   (let ((parts (split-string path "/" t)))
     (when (>= (length parts) 2)
       (let ((year (advent--parse-int-segment (car parts) advent-year-dir-format))
             (day (advent--parse-int-segment (cadr parts) advent-day-dir-format)))
-        (when (and year day (advent--valid-year-day-p year day))
-          (list year day))))))
+        (advent--released-year-day year day latest explain-locked)))))
 
 (defun advent--parse-int-segment (segment format-string)
   "Parse integer from SEGMENT using FORMAT-STRING.
@@ -307,16 +323,18 @@ Return nil when SEGMENT does not match FORMAT-STRING."
     (list (match-string 1 format-string)
           (match-string 2 format-string))))
 
-(defun advent--context-year-day ()
+(defun advent--context-year-day (&optional latest explain-locked)
   "Infer (YEAR DAY) from the current buffer location in `advent-root-dir'.
-Return nil if not in the root dir."
+LATEST defaults to the current release bound.  EXPLAIN-LOCKED reports
+the unlock time if the directory identifies a future puzzle."
   (when-let* ((rel (advent--relative-dir (advent--current-buffer-dir))))
-    (advent--infer-year-day-from-path rel)))
+    (advent--infer-year-day-from-path
+     rel (or latest (advent--latest-release (current-time))) explain-locked)))
 
 (defun advent--ensure-context-or-error (&optional year day)
   "Return the explicit YEAR and DAY or infer both from the current buffer."
   (or (advent--explicit-year-day year day)
-      (advent--context-year-day)
+      (advent--context-year-day nil t)
       (user-error "Not inside an AoC day directory; use M-x advent-open-day first")))
 
 (defun advent--default-answer ()
@@ -340,8 +358,8 @@ Signal `user-error' for puzzle LABEL if nothing is left."
       (user-error "%s" (advent--puzzle-text label "No answer given")))
     trimmed))
 
-(defun advent--existing-days (root)
-  "Return a completion alist mapping display labels to (YEAR DAY) under ROOT."
+(defun advent--existing-days (root latest)
+  "Return completion labels and puzzle dates under ROOT released by LATEST."
   (let ((root (advent--normalize-dir root))
         choices)
     (dolist (year-dir (directory-files root t directory-files-no-dot-files-regexp))
@@ -349,7 +367,7 @@ Signal `user-error' for puzzle LABEL if nothing is left."
         (dolist (day-dir (directory-files year-dir t directory-files-no-dot-files-regexp))
           (when (file-directory-p day-dir)
             (when-let* ((rel (file-name-as-directory (file-relative-name day-dir root)))
-                        (year-day (advent--infer-year-day-from-path rel)))
+                        (year-day (advent--infer-year-day-from-path rel latest)))
               (push (cons (apply #'advent--format-year-day year-day) year-day)
                     choices))))))
     (nreverse choices)))
@@ -357,11 +375,13 @@ Signal `user-error' for puzzle LABEL if nothing is left."
 (defun advent--read-existing-year-day (root &optional time)
   "Prompt for an existing AoC YEAR/DAY under ROOT.
 Default tries `advent--default-aoc-year-day' with TIME."
-  (let ((choices (advent--existing-days root)))
+  (let* ((time (or time (current-time)))
+         (latest (advent--latest-release time))
+         (choices (advent--existing-days root latest)))
     (unless choices
-      (user-error "No AoC day directories found under %s (use M-x advent-create-day)"
+      (user-error "No released AoC day directories found under %s (use M-x advent-create-day)"
                   root))
-    (pcase-let* ((`(,defy ,defd) (advent--default-aoc-year-day time))
+    (pcase-let* ((`(,defy ,defd) (advent--default-aoc-year-day time latest))
                  (defkey (advent--format-year-day defy defd))
                  (default (or (assoc defkey choices) (car choices)))
                  (picked (completing-read "Open year/day: " choices
@@ -490,10 +510,15 @@ Returns response body as string."
 (defun advent--prompt-year-day (time)
   "Prompt for AoC YEAR and DAY.
 Default values come from `advent--default-aoc-year-day' with TIME."
-  (pcase-let* ((`(,default-year ,day) (advent--default-aoc-year-day time))
-               (year (read-number "Year: " default-year)))
+  (pcase-let* ((latest (advent--latest-release time))
+               (`(,default-year ,day) (advent--default-aoc-year-day time latest))
+               (year (read-number "Year: " default-year))
+               (default-day (when (advent--valid-year-day-p year 1 latest)
+                              (min day (if (= year (car latest))
+                                           (cadr latest)
+                                         (advent--max-day year))))))
     (advent--ensure-valid-year-day-or-error
-     year (read-number (format "Day for %s: " year) day))))
+     year (read-number (format "Day for %s: " year) default-day))))
 
 ;;;; Commands
 
@@ -543,7 +568,7 @@ puzzle or prompt with defaults based on the date in `advent-timezone'.
 With a prefix argument, always prompt for both."
   (interactive (when current-prefix-arg (advent--prompt-year-day (current-time))))
   (pcase-let ((`(,year ,day) (or (advent--explicit-year-day year day)
-                                (advent--context-year-day)
+                                (advent--context-year-day nil t)
                                 (advent--prompt-year-day (current-time)))))
     (eww-browse-url (advent--problem-url year day))))
 
@@ -668,12 +693,13 @@ alongside Dired.
 For an existing day, open its directory in Dired."
   (interactive (when current-prefix-arg (advent--prompt-year-day (current-time))))
   (pcase-let* ((now (current-time))
-               (`(,year ,day)
-                (or (advent--explicit-year-day year day)
-                    (advent--puzzle-on-date now advent-timezone)
-                    (user-error (concat "No Advent of Code puzzle opens on %s. "
-                                        "Use C-u M-x advent-today to choose a year and day")
-                                (format-time-string "%B %-d" now advent-timezone))))
+               (pair (if (or year day) (list year day)
+                       (or (advent--puzzle-on-date now advent-timezone)
+                           (user-error (concat "No Advent of Code puzzle opens on %s. "
+                                               "Use C-u M-x advent-today to choose a year and day")
+                                       (format-time-string "%B %-d" now advent-timezone)))))
+               (`(,year ,day) (advent--ensure-valid-year-day-or-error
+                               (car pair) (cadr pair) (advent--latest-release now)))
                (root (advent--root-or-error year day))
                (dir (advent--problem-dir year day root))
                (created (advent--maybe-create-dir dir)))
@@ -694,11 +720,11 @@ For an existing day, open its directory in Dired."
 
 (defun advent--refresh-mode-line-context (&optional _window)
   "Refresh the current buffer's cached puzzle when its lookup inputs change."
-  (let ((inputs (list buffer-file-name default-directory advent-root-dir
-                      advent-year-dir-format advent-day-dir-format
-                      (advent--current-year))))
+  (let* ((latest (advent--latest-release (current-time)))
+         (inputs (list buffer-file-name default-directory advent-root-dir
+                       advent-year-dir-format advent-day-dir-format latest)))
     (unless (equal inputs (car advent--mode-line-cache))
-      (setq advent--mode-line-cache (cons inputs (advent--context-year-day)))
+      (setq advent--mode-line-cache (cons inputs (advent--context-year-day latest)))
       (force-mode-line-update))))
 
 (defun advent--format-mode-line (format-string context cookie-status)

@@ -4,20 +4,22 @@
 (require 'advent-mode)
 
 (ert-deftest advent-valid-year-day-p-accepts-valid-values ()
-  (should (advent--valid-year-day-p 2015 1))
-  (should (advent--valid-year-day-p 2024 25))
-  (should (advent--valid-year-day-p 2025 12)))
+  (should (advent--valid-year-day-p 2015 1 '(2025 12)))
+  (should (advent--valid-year-day-p 2024 25 '(2025 12)))
+  (should (advent--valid-year-day-p 2025 12 '(2025 12))))
 
 (ert-deftest advent-valid-year-day-p-rejects-out-of-range-values ()
-  (should-not (advent--valid-year-day-p 2014 1))
-  (should-not (advent--valid-year-day-p 2024 0))
-  (should-not (advent--valid-year-day-p 2024 26))
-  (should-not (advent--valid-year-day-p -1 1))
-  (should-not (advent--valid-year-day-p 2024 -2))
+  (should-not (advent--valid-year-day-p 2014 1 '(2025 12)))
+  (should-not (advent--valid-year-day-p 2024 0 '(2025 12)))
+  (should-not (advent--valid-year-day-p 2024 26 '(2025 12)))
+  (should-not (advent--valid-year-day-p -1 1 '(2025 12)))
+  (should-not (advent--valid-year-day-p 2024 -2 '(2025 12)))
   ;; future year
-  (should-not (advent--valid-year-day-p 9999 1))
+  (should-not (advent--valid-year-day-p 9999 1 '(2025 12)))
+  (should-not (advent--valid-year-day-p 2026 1 '(2025 12)))
+  (should-not (advent--valid-year-day-p 2026 2 '(2026 1)))
   ;; 2025 had only 12 days
-  (should-not (advent--valid-year-day-p 2025 13)))
+  (should-not (advent--valid-year-day-p 2025 13 '(2025 12))))
 
 (ert-deftest advent-ensure-context-or-error-rejects-invalid-explicit-values ()
   (should-error (advent--ensure-context-or-error 2014 1) :type 'user-error)

@@ -70,7 +70,7 @@ No cookie file is read or written."
            (lookups 0)
            updates)
        (cl-letf (((symbol-function 'advent--context-year-day)
-                  (lambda ()
+                  (lambda (&rest _)
                     (cl-incf lookups)
                     (if (eq (current-buffer) first) '(2024 5) '(2023 1)))))
          (advent-mode 1)
